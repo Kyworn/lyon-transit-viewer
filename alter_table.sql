@@ -1,0 +1,1 @@
+ALTER TABLE lines ALTER COLUMN trace_code TYPE TEXT;

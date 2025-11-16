@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    container_name: lyon_transit_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: lyon_transit_backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+      - ./frontend/public/icons:/usr/src/app/frontend_icons
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      TCL_API_TOKEN: ${TCL_API_TOKEN}
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: lyon_transit_frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/usr/src/app
+      - /usr/src/app/node_modules
+    env_file:
+      - ./frontend/.env
+    environment:
+      HOST: 0.0.0.0
+      WDS_SOCKET_PORT: 0
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: lyon_transit_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "0.0.0.0:8080:80"
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8081:8080"
+
+  redis:
+    image: redis:7-alpine
+    container_name: lyon_transit_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+#  mcp-server:
+#    build:
+#      context: ./mcp-server-python
+#    container_name: tcl_mcp_server
+#    ports:
+#      - "8000:8000"
+#    volumes:
+#      # Mount the entire project directory to /project inside the container
+#      # Tools written in the MCP server should use /project as the root path.
+#      - .:/project
+#    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redis_data:
+  frontend_node_modules:
