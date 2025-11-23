@@ -4,7 +4,7 @@ import { useLines } from '../hooks/useLines';
 import { useStops } from '../hooks/useStops';
 import { useSelectionStore } from '../stores/selectionStore';
 import { useFavoritesStore } from '../stores/favoritesStore';
-import { Line, Stop } from '../types';
+import { Line } from '../types';
 import {
   Box,
   Typography,
@@ -20,6 +20,11 @@ import {
   Stack,
   Chip,
   Avatar,
+  Collapse,
+  Button,
+  useMediaQuery,
+  Skeleton,
+  Badge,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -27,547 +32,441 @@ import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
-import { MetroIcon, BusIcon, TramIcon, FunicularIcon, getTransportIcon } from './TransportIcons';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
+import TramIcon from '@mui/icons-material/Tram';
+import SubwayIcon from '@mui/icons-material/Subway';
+import TrainIcon from '@mui/icons-material/Train';
+import FilterListIcon from '@mui/icons-material/FilterList';
 
-const ModernSidebar: React.FC = () => {
+import DirectionsIcon from '@mui/icons-material/Directions';
+
+interface ModernSidebarProps {
+  open: boolean;
+  onClose: () => void;
+  onOpenRoutePlanner: () => void;
+}
+
+const ModernSidebar: React.FC<ModernSidebarProps> = ({ open, onClose, onOpenRoutePlanner }) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [searchInput, setSearchInput] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState(0);
-  const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({});
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | 'all'>('all');
 
-  // Debounce search input
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchInput]);
-
-  const { data: lines, isLoading } = useLines();
+  const { data: lines, isLoading: isLoadingLines } = useLines();
   const { data: stops, isLoading: isLoadingStops } = useStops(false);
   const { selectedLine, setSelectedLine, setCenterCoordinates } = useSelectionStore();
   const { favoriteLines, favoriteStops, addFavoriteLine, removeFavoriteLine, isFavoriteLine, addFavoriteStop, removeFavoriteStop, isFavoriteStop } = useFavoritesStore();
 
   const getCategoryIcon = (category: string) => {
-    const Icon = getTransportIcon(category);
-    return <Icon />;
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'bus': return '#FF6B6B';
-      case 'tram': return '#4ECDC4';
-      case 'metro': return '#95E1D3';
-      default: return theme.palette.grey[500];
+    switch (category?.toLowerCase()) {
+      case 'metro': return <SubwayIcon fontSize="small" />;
+      case 'tram': return <TramIcon fontSize="small" />;
+      case 'funicular': return <TrainIcon fontSize="small" />;
+      default: return <DirectionsBusIcon fontSize="small" />;
     }
   };
 
   const groupedLines = useMemo(() => {
     if (!lines) return {};
-
     const unique = lines.reduce((acc: { [key: string]: Line }, line: Line) => {
-      if (!acc[line.line_sort_code]) {
-        acc[line.line_sort_code] = line;
-      }
+      if (!acc[line.line_sort_code]) acc[line.line_sort_code] = line;
       return acc;
     }, {});
 
     return Object.values(unique).reduce((acc: { [key: string]: Line[] }, line: Line) => {
-      const category = line.category || 'Autre';
+      const category = line.category || 'bus';
       if (!acc[category]) acc[category] = [];
       acc[category].push(line);
       return acc;
     }, {});
   }, [lines]);
 
-  const filteredLines = useMemo(() => {
-    const source = searchTerm ? groupedLines : groupedLines;
+  // Sort categories: Metro, Tram, Funi, Bus
+  const sortedCategories = ['metro', 'tram', 'funicular', 'bus'].filter(c => groupedLines[c]);
 
-    if (!searchTerm) {
-      // No search: apply category limits
-      const limited: { [key: string]: Line[] } = {};
-      Object.entries(source).forEach(([category, categoryLines]) => {
-        // Limit bus category to 20 unless expanded
-        if (category === 'bus' && !expandedCategories[category]) {
-          limited[category] = categoryLines.slice(0, 20);
-        } else {
-          limited[category] = categoryLines;
-        }
-      });
-      return limited;
-    } else {
-      // Search mode: show all matching
-      const filtered: { [key: string]: Line[] } = {};
-      Object.entries(source).forEach(([category, categoryLines]) => {
-        const matching = categoryLines.filter(line =>
-          line.line_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          line.line_name?.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-        if (matching.length > 0) filtered[category] = matching;
-      });
-      return filtered;
-    }
-  }, [groupedLines, searchTerm, expandedCategories]);
+  const filteredResults = useMemo(() => {
+    if (!searchInput) return null;
+    const searchLower = searchInput.toLowerCase();
 
-  const filteredStops = useMemo(() => {
-    if (!stops || !searchTerm) return [];
-    return stops
-      .filter(stop =>
-        stop.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        stop.municipality?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      .slice(0, 20);
-  }, [stops, searchTerm]);
-
-  const favoriteLinesList = useMemo(() => {
-    if (!lines) return [];
-    return lines.filter(l => favoriteLines.includes(l.line_sort_code));
-  }, [lines, favoriteLines]);
-
-  const favoriteStopsList = useMemo(() => {
-    if (!stops) return [];
-    return stops.filter(s => favoriteStops.includes(s.id));
-  }, [stops, favoriteStops]);
-
-  const handleLineClick = (line: Line) => {
-    setSelectedLine(line);
-  };
-
-  const handleInvertDirection = (e: React.MouseEvent, line: Line) => {
-    e.stopPropagation();
-    if (!lines) return;
-    const other = lines.find(l => l.line_sort_code === line.line_sort_code && l.direction !== line.direction);
-    if (other) setSelectedLine(other);
-  };
+    return {
+      lines: lines?.filter(l =>
+        (l.line_code?.toLowerCase() || '').includes(searchLower) ||
+        (l.line_sort_code?.toLowerCase() || '').includes(searchLower) ||
+        (l.line_name?.toLowerCase() || '').includes(searchLower) ||
+        (l.destination_name?.toLowerCase() || '').includes(searchLower)
+      ).slice(0, 10) || [],
+      stops: stops?.filter(s =>
+        (s.name?.toLowerCase() || '').includes(searchLower)
+      ).slice(0, 10) || []
+    };
+  }, [searchInput, lines, stops]);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', bgcolor: theme.palette.background.default }}>
-      {/* Modern Glassmorphism Header */}
-      <Box sx={{
-        p: 2.5,
-        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-        backdropFilter: 'blur(20px)',
-        bgcolor: alpha(theme.palette.background.paper, 0.8),
-        boxShadow: `0 4px 24px ${alpha(theme.palette.common.black, 0.05)}`,
-      }}>
-        <Typography variant="h5" sx={{
-          fontWeight: 800,
-          mb: 2,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-          backgroundClip: 'text',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-        }}>
-          Réseau TCL
-        </Typography>
-
-        <TextField
-          fullWidth
-          size="medium"
-          placeholder="Rechercher une ligne ou un arrêt..."
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ color: theme.palette.primary.main }} />
-              </InputAdornment>
-            ),
-            endAdornment: searchInput && (
-              <InputAdornment position="end">
-                <IconButton
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ x: -400, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: -400, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          style={{
+            pointerEvents: 'auto', // Re-enable clicks for the panel itself
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <Box
+            sx={{
+              mt: isMobile ? 0 : 2,
+              ml: isMobile ? 0 : 2,
+              mb: isMobile ? 0 : 2,
+              width: isMobile ? '100%' : '400px',
+              height: isMobile ? '100%' : 'calc(100% - 48px)', // More spacing
+              bgcolor: alpha(theme.palette.background.paper, 0.6), // More transparent
+              backdropFilter: 'blur(30px)', // Heavier blur
+              borderRadius: isMobile ? 0 : 6, // Match theme shape
+              border: isMobile ? 'none' : `1px solid ${alpha(theme.palette.common.white, 0.08)}`,
+              boxShadow: isMobile ? 'none' : '0 24px 48px rgba(0,0,0,0.5)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            {/* Header & Search */}
+            <Box sx={{ p: { xs: 2, md: 3 }, pb: { xs: 1, md: 2 } }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h5" sx={{ fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: { xs: '1.25rem', md: '1.5rem' } }}>
+                  Explorer
+                  <Typography component="span" color="primary" variant="h5" fontWeight={700} sx={{ fontSize: { xs: '1.25rem', md: '1.5rem' } }}>.</Typography>
+                </Typography>
+                <Button
+                  variant="contained"
                   size="small"
-                  onClick={() => setSearchInput('')}
+                  startIcon={<DirectionsIcon />}
+                  onClick={onOpenRoutePlanner}
                   sx={{
-                    transition: 'all 0.2s',
-                    '&:hover': {
-                      bgcolor: alpha(theme.palette.error.main, 0.1),
-                      transform: 'rotate(90deg)',
-                    },
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    fontSize: { xs: '0.8rem', md: '0.875rem' },
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`
                   }}
                 >
-                  <ClearIcon fontSize="small" />
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 3,
-              bgcolor: alpha(theme.palette.background.paper, 0.6),
-              backdropFilter: 'blur(10px)',
-              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-              transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
-              '&:hover': {
-                bgcolor: alpha(theme.palette.background.paper, 0.8),
-                borderColor: alpha(theme.palette.primary.main, 0.3),
-                boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.1)}`,
-              },
-              '&.Mui-focused': {
-                bgcolor: alpha(theme.palette.background.paper, 0.9),
-                borderColor: theme.palette.primary.main,
-                boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.15)}`,
-              },
-            },
-          }}
-        />
-      </Box>
+                  Itinéraire
+                </Button>
+              </Stack>
 
-      {/* Compact Tabs */}
-      <Tabs
-        value={activeTab}
-        onChange={(_, v) => setActiveTab(v)}
-        variant="fullWidth"
-        sx={{
-          minHeight: 40,
-          borderBottom: `1px solid ${theme.palette.divider}`,
-          '& .MuiTab-root': {
-            minHeight: 40,
-            fontSize: '0.813rem',
-            textTransform: 'none',
-            fontWeight: 600,
-          },
-        }}
-      >
-        <Tab label="Lignes" />
-        <Tab label="Arrêts" />
-        <Tab label="Favoris" />
-      </Tabs>
-
-      {/* Content */}
-      <Box sx={{ flex: 1, overflowY: 'auto', p: 1.5 }}>
-        {/* Lines Tab */}
-        {activeTab === 0 && (
-          <Stack spacing={1.5}>
-            {Object.entries(filteredLines)
-              .sort((a, b) => {
-                // Custom sort: metro, tram, funicular first, then bus
-                const order: { [key: string]: number } = { metro: 1, tram: 2, funicular: 3, bus: 4 };
-                return (order[a[0]] || 99) - (order[b[0]] || 99);
-              })
-              .map(([category, categoryLines]) => {
-                const totalInCategory = groupedLines[category]?.length || 0;
-                const isLimited = category === 'bus' && !expandedCategories[category] && !searchTerm && totalInCategory > 20;
-
-                return (
-                <Box key={category}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, px: 1 }}>
-                    <Box sx={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 1.5,
-                      bgcolor: alpha(getCategoryColor(category), 0.15),
-                      color: getCategoryColor(category),
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                      {getCategoryIcon(category)}
-                    </Box>
-                    <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary' }}>
-                      {category}
-                    </Typography>
-                    <Chip label={categoryLines.length} size="small" sx={{ height: 18, fontSize: '0.688rem' }} />
-                  </Box>
-
-                  <Stack spacing={0.5}>
-                    <AnimatePresence>
-                    {categoryLines.map((line, idx) => {
-                      const isSelected = selectedLine?.line_sort_code === line.line_sort_code;
-                      const lineToDisplay = isSelected ? selectedLine! : line;
-                      const categoryColor = getCategoryColor(category);
-
-                      return (
-                        <motion.div
-                          key={line.id}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: 20 }}
-                          transition={{ delay: idx * 0.02, duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
-                        >
-                        <Card
-                          onClick={() => handleLineClick(lineToDisplay)}
-                          sx={{
-                            cursor: 'pointer',
-                            transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
-                            bgcolor: isSelected ? alpha(categoryColor, 0.15) : alpha(theme.palette.background.paper, 0.6),
-                            backdropFilter: 'blur(10px)',
-                            border: `1px solid ${isSelected ? alpha(categoryColor, 0.4) : alpha(theme.palette.divider, 0.1)}`,
-                            boxShadow: isSelected ? `0 8px 24px ${alpha(categoryColor, 0.2)}` : 'none',
-                            '&:hover': {
-                              bgcolor: alpha(categoryColor, 0.12),
-                              borderColor: alpha(categoryColor, 0.3),
-                              transform: 'translateX(6px) scale(1.02)',
-                              boxShadow: `0 12px 32px ${alpha(categoryColor, 0.15)}`,
-                            },
-                          }}
-                        >
-                          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                              <Avatar
-                                sx={{
-                                  width: 36,
-                                  height: 36,
-                                  background: `linear-gradient(135deg, ${categoryColor} 0%, ${alpha(categoryColor, 0.7)} 100%)`,
-                                  fontSize: '0.875rem',
-                                  fontWeight: 800,
-                                  boxShadow: `0 4px 12px ${alpha(categoryColor, 0.3)}`,
-                                  border: `2px solid ${alpha(theme.palette.common.white, 0.2)}`,
-                                  position: 'relative',
-                                  '&::before': {
-                                    content: '""',
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    bottom: 0,
-                                    background: 'linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 100%)',
-                                    borderRadius: '50%',
-                                  },
-                                }}
-                              >
-                                {lineToDisplay.line_code}
-                              </Avatar>
-
-                              <Box sx={{ flex: 1, minWidth: 0 }}>
-                                <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem' }} noWrap>
-                                  {lineToDisplay.line_name}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" noWrap>
-                                  {lineToDisplay.destination_name}
-                                </Typography>
-                              </Box>
-
-                              <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    isFavoriteLine(lineToDisplay.line_sort_code)
-                                      ? removeFavoriteLine(lineToDisplay.line_sort_code)
-                                      : addFavoriteLine(lineToDisplay.line_sort_code);
-                                  }}
-                                  sx={{ width: 28, height: 28 }}
-                                >
-                                  {isFavoriteLine(lineToDisplay.line_sort_code) ? (
-                                    <StarIcon sx={{ fontSize: 16, color: theme.palette.warning.main }} />
-                                  ) : (
-                                    <StarBorderIcon sx={{ fontSize: 16 }} />
-                                  )}
-                                </IconButton>
-
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => handleInvertDirection(e, lineToDisplay)}
-                                  sx={{ width: 28, height: 28 }}
-                                >
-                                  <SwapHorizIcon sx={{ fontSize: 16 }} />
-                                </IconButton>
-                              </Box>
-                            </Box>
-                          </CardContent>
-                        </Card>
-                        </motion.div>
-                      );
-                    })}
-                    </AnimatePresence>
-
-                    {/* Show More Button for bus category */}
-                    {isLimited && (
-                      <Card
-                        onClick={() => setExpandedCategories({ ...expandedCategories, [category]: true })}
-                        sx={{
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                          bgcolor: alpha(theme.palette.primary.main, 0.08),
-                          border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-                          '&:hover': {
-                            bgcolor: alpha(theme.palette.primary.main, 0.15),
-                          },
-                        }}
-                      >
-                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 }, textAlign: 'center' }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.primary.main }}>
-                            Voir {totalInCategory - 20} lignes de plus...
-                          </Typography>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </Stack>
-                </Box>
-                );
-              })}
-          </Stack>
-        )}
-
-        {/* Stops Tab */}
-        {activeTab === 1 && (
-          <Stack spacing={0.5}>
-            {!searchTerm && (
-              <Typography variant="caption" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
-                Commencez à taper pour rechercher un arrêt
-              </Typography>
-            )}
-            {filteredStops.map(stop => (
-              <Card
-                key={stop.id}
-                onClick={() => setCenterCoordinates({ lng: stop.longitude, lat: stop.latitude })}
-                sx={{
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  '&:hover': {
-                    bgcolor: alpha(theme.palette.info.main, 0.08),
-                    transform: 'translateX(4px)',
-                  },
+              <TextField
+                fullWidth
+                placeholder="Ligne, arrêt, direction..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon color="action" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: searchInput && (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={() => setSearchInput('')}>
+                        <ClearIcon fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  ),
                 }}
-              >
-                <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Avatar sx={{ width: 32, height: 32, bgcolor: alpha(theme.palette.info.main, 0.15) }}>
-                      <LocationOnIcon sx={{ fontSize: 18, color: theme.palette.info.main }} />
-                    </Avatar>
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 3,
+                    bgcolor: alpha(theme.palette.background.default, 0.5),
+                    fontSize: { xs: '0.9rem', md: '1rem' },
+                    '&.Mui-focused': {
+                      bgcolor: alpha(theme.palette.background.default, 0.8),
+                      boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.3)}`,
+                    }
+                  }
+                }}
+              />
+            </Box>
 
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem' }} noWrap>
-                        {stop.name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" noWrap>
-                        {stop.municipality}
-                      </Typography>
-                    </Box>
-
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        isFavoriteStop(stop.id) ? removeFavoriteStop(stop.id) : addFavoriteStop(stop.id);
-                      }}
-                      sx={{ width: 28, height: 28 }}
-                    >
-                      {isFavoriteStop(stop.id) ? (
-                        <StarIcon sx={{ fontSize: 16, color: theme.palette.warning.main }} />
-                      ) : (
-                        <StarBorderIcon sx={{ fontSize: 16 }} />
-                      )}
-                    </IconButton>
-                  </Box>
-                </CardContent>
-              </Card>
-            ))}
-          </Stack>
-        )}
-
-        {/* Favorites Tab */}
-        {activeTab === 2 && (
-          <Stack spacing={2}>
-            {favoriteLinesList.length === 0 && favoriteStopsList.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 8 }}>
-                <StarBorderIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-                <Typography variant="body2" color="text.secondary">
-                  Aucun favori
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Cliquez sur ⭐ pour ajouter
-                </Typography>
+            {/* Filter Chips (Only visible when not searching) */}
+            {!searchInput && (
+              <Box sx={{ px: 3, pb: 2, display: 'flex', gap: 1, overflowX: 'auto', '::-webkit-scrollbar': { display: 'none' } }}>
+                <Chip
+                  label="Tout"
+                  onClick={() => setActiveCategoryFilter('all')}
+                  color={activeCategoryFilter === 'all' ? 'primary' : 'default'}
+                  sx={{ fontWeight: 600 }}
+                />
+                {sortedCategories.map(cat => (
+                  <Chip
+                    key={cat}
+                    label={cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    icon={getCategoryIcon(cat)}
+                    onClick={() => setActiveCategoryFilter(cat)}
+                    color={activeCategoryFilter === cat ? 'primary' : 'default'}
+                    variant={activeCategoryFilter === cat ? 'filled' : 'outlined'}
+                    sx={{
+                      fontWeight: 700,
+                      textTransform: 'capitalize',
+                      transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
+                      ...(activeCategoryFilter === cat && {
+                        boxShadow: `0 0 20px ${alpha(theme.palette.primary.main, 0.4)}`,
+                        borderColor: theme.palette.primary.main,
+                        background: alpha(theme.palette.primary.main, 0.2),
+                      })
+                    }}
+                  />
+                ))}
               </Box>
-            ) : (
-              <>
-                {favoriteLinesList.length > 0 && (
-                  <Box>
-                    <Typography variant="caption" sx={{ px: 1, mb: 1, display: 'block', fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary' }}>
-                      Lignes
-                    </Typography>
-                    <Stack spacing={0.5}>
-                      {favoriteLinesList.map(line => {
-                        const categoryColor = getCategoryColor(line.category);
-                        return (
-                          <Card
-                            key={line.id}
-                            onClick={() => handleLineClick(line)}
+            )}
+
+            {/* Content Area */}
+            <Box sx={{ flex: 1, overflowY: 'auto', px: 3, pb: 3 }}>
+
+              {/* Search Results or Line Details */}
+              {selectedLine ? (
+                <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Card
+                    sx={{
+                      bgcolor: alpha(theme.palette.background.paper, 0.4),
+                      border: `1px solid ${theme.palette.divider}`,
+                      overflow: 'visible',
+                    }}
+                  >
+                    <CardContent sx={{ p: 3 }}>
+                      <Stack spacing={3} alignItems="center">
+                        <Badge
+                          overlap="circular"
+                          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                          badgeContent={
+                            <Avatar sx={{ width: 24, height: 24, bgcolor: theme.palette.background.paper, border: `2px solid ${theme.palette.background.paper}` }}>
+                              {getCategoryIcon(selectedLine.category || 'bus')}
+                            </Avatar>
+                          }
+                        >
+                          <Avatar
                             sx={{
-                              cursor: 'pointer',
-                              transition: 'all 0.2s',
-                              '&:hover': {
-                                bgcolor: alpha(categoryColor, 0.08),
-                                transform: 'translateX(4px)',
-                              },
+                              bgcolor: selectedLine.color || theme.palette.primary.main,
+                              width: 80,
+                              height: 80,
+                              fontSize: '2rem',
+                              fontWeight: 800,
+                              boxShadow: `0 8px 24px ${alpha(selectedLine.color || theme.palette.primary.main, 0.4)}`,
                             }}
                           >
-                            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                <Avatar sx={{ width: 32, height: 32, bgcolor: categoryColor, fontSize: '0.813rem', fontWeight: 700 }}>
-                                  {line.line_code}
-                                </Avatar>
-                                <Box sx={{ flex: 1, minWidth: 0 }}>
-                                  <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem' }} noWrap>
-                                    {line.line_name}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary" noWrap>
-                                    {line.destination_name}
-                                  </Typography>
-                                </Box>
-                                <IconButton size="small" onClick={(e) => { e.stopPropagation(); removeFavoriteLine(line.line_sort_code); }} sx={{ width: 28, height: 28 }}>
-                                  <StarIcon sx={{ fontSize: 16, color: theme.palette.warning.main }} />
-                                </IconButton>
+                            {selectedLine.line_sort_code}
+                          </Avatar>
+                        </Badge>
+
+                        <Box textAlign="center">
+                          <Typography variant="overline" color="text.secondary" fontWeight={700} letterSpacing={1.5}>
+                            DIRECTION
+                          </Typography>
+                          <Typography variant="h5" fontWeight={800} sx={{ fontFamily: 'Space Grotesk', lineHeight: 1.2 }}>
+                            {selectedLine.destination_name}
+                          </Typography>
+                        </Box>
+
+                        <Stack direction="row" spacing={2} width="100%">
+                          <Button
+                            fullWidth
+                            variant="outlined"
+                            startIcon={<SwapHorizIcon />}
+                            onClick={() => {
+                              // Find reverse line
+                              const reverseLine = lines?.find(l =>
+                                l.line_sort_code === selectedLine.line_sort_code &&
+                                l.destination_name !== selectedLine.destination_name
+                              );
+                              if (reverseLine) setSelectedLine(reverseLine);
+                            }}
+                            sx={{
+                              borderRadius: 3,
+                              py: 1.5,
+                              borderColor: alpha(theme.palette.text.primary, 0.2),
+                              color: theme.palette.text.primary,
+                              '&:hover': {
+                                borderColor: theme.palette.text.primary,
+                                bgcolor: alpha(theme.palette.text.primary, 0.05)
+                              }
+                            }}
+                          >
+                            Inverser
+                          </Button>
+                          <Button
+                            fullWidth
+                            variant="contained"
+                            color="error"
+                            startIcon={<ClearIcon />}
+                            onClick={() => setSelectedLine(null)}
+                            sx={{ borderRadius: 3, py: 1.5, boxShadow: 'none' }}
+                          >
+                            Fermer
+                          </Button>
+                        </Stack>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+
+                  <Typography variant="caption" textAlign="center" color="text.secondary">
+                    Sélectionnez un arrêt sur la carte pour voir les horaires.
+                  </Typography>
+                </Box>
+              ) : searchInput ? (
+                <Stack spacing={2}>
+                  {/* Lines Found */}
+                  {filteredResults?.lines.length ? (
+                    <Box>
+                      <Typography variant="overline" color="text.secondary" fontWeight={700}>Lignes</Typography>
+                      <Stack spacing={1}>
+                        {filteredResults.lines.map(line => (
+                          <Card
+                            key={line.id}
+                            onClick={() => setSelectedLine(line)}
+                            sx={{
+                              bgcolor: alpha(theme.palette.background.paper, 0.4),
+                              border: `1px solid ${theme.palette.divider}`,
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              '&:hover': { transform: 'translateX(4px)', borderColor: theme.palette.primary.main }
+                            }}
+                          >
+                            <CardContent sx={{ p: '12px !important', display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <Avatar
+                                sx={{
+                                  bgcolor: line.color || theme.palette.grey[700],
+                                  color: '#fff',
+                                  fontWeight: 800,
+                                  width: 32, height: 32, fontSize: '0.8rem'
+                                }}
+                              >
+                                {line.line_code}
+                              </Avatar>
+                              <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                                <Typography variant="body2" fontWeight={600} noWrap>{line.line_name}</Typography>
+                                <Typography variant="caption" color="text.secondary" noWrap>Vers {line.destination_name}</Typography>
                               </Box>
                             </CardContent>
                           </Card>
-                        );
-                      })}
-                    </Stack>
-                  </Box>
-                )}
+                        ))}
+                      </Stack>
+                    </Box>
+                  ) : null}
 
-                {favoriteStopsList.length > 0 && (
-                  <Box>
-                    <Typography variant="caption" sx={{ px: 1, mb: 1, display: 'block', fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary' }}>
-                      Arrêts
-                    </Typography>
-                    <Stack spacing={0.5}>
-                      {favoriteStopsList.map(stop => (
-                        <Card
-                          key={stop.id}
-                          onClick={() => setCenterCoordinates({ lng: stop.longitude, lat: stop.latitude })}
-                          sx={{
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            '&:hover': {
-                              bgcolor: alpha(theme.palette.info.main, 0.08),
-                              transform: 'translateX(4px)',
-                            },
-                          }}
-                        >
-                          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                              <Avatar sx={{ width: 32, height: 32, bgcolor: alpha(theme.palette.info.main, 0.15) }}>
-                                <LocationOnIcon sx={{ fontSize: 18, color: theme.palette.info.main }} />
-                              </Avatar>
-                              <Box sx={{ flex: 1, minWidth: 0 }}>
-                                <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem' }} noWrap>
-                                  {stop.name}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" noWrap>
-                                  {stop.municipality}
-                                </Typography>
+                  {/* Stops Found */}
+                  {filteredResults?.stops.length ? (
+                    <Box>
+                      <Typography variant="overline" color="text.secondary" fontWeight={700}>Arrêts</Typography>
+                      <Stack spacing={1}>
+                        {filteredResults.stops.map(stop => (
+                          <Card
+                            key={stop.id}
+                            onClick={() => setCenterCoordinates({ lng: stop.longitude, lat: stop.latitude })}
+                            sx={{
+                              bgcolor: alpha(theme.palette.background.paper, 0.4),
+                              border: `1px solid ${theme.palette.divider}`,
+                              cursor: 'pointer',
+                              '&:hover': { borderColor: theme.palette.info.main }
+                            }}
+                          >
+                            <CardContent sx={{ p: '12px !important', display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <LocationOnIcon color="info" />
+                              <Box>
+                                <Typography variant="body2" fontWeight={600}>{stop.name}</Typography>
+                                <Typography variant="caption" color="text.secondary">{stop.municipality}</Typography>
                               </Box>
-                              <IconButton size="small" onClick={(e) => { e.stopPropagation(); removeFavoriteStop(stop.id); }} sx={{ width: 28, height: 28 }}>
-                                <StarIcon sx={{ fontSize: 16, color: theme.palette.warning.main }} />
-                              </IconButton>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </Stack>
+                    </Box>
+                  ) : null}
+                </Stack>
+              ) : (
+                /* Browse Mode */
+                <Stack spacing={3}>
+                  {isLoadingLines ? (
+                    <Box p={2}>
+                      <Stack spacing={2}>
+                        {[1, 2, 3].map((i) => (
+                          <Box key={i}>
+                            <Skeleton variant="text" width={100} height={32} sx={{ mb: 1, bgcolor: 'rgba(255,255,255,0.1)' }} />
+                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))', gap: 1 }}>
+                              {[1, 2, 3, 4, 5].map((j) => (
+                                <Skeleton key={j} variant="rounded" height={60} sx={{ borderRadius: 3, bgcolor: 'rgba(255,255,255,0.1)' }} />
+                              ))}
                             </Box>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </Stack>
-                  </Box>
-                )}
-              </>
-            )}
-          </Stack>
-        )}
-      </Box>
-    </Box>
+                          </Box>
+                        ))}
+                      </Stack>
+                    </Box>
+                  ) : (
+                    sortedCategories.map(category => {
+                      if (activeCategoryFilter !== 'all' && activeCategoryFilter !== category) return null;
+
+                      const linesInCategory = groupedLines[category] || [];
+                      if (linesInCategory.length === 0) return null;
+
+                      return (
+                        <Box key={category}>
+                          <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+                            {getCategoryIcon(category)}
+                            <Typography variant="h6" sx={{ fontFamily: 'Space Grotesk', textTransform: 'capitalize' }}>
+                              {category}
+                            </Typography>
+                            <Chip label={linesInCategory.length} size="small" sx={{ height: 20, fontSize: '0.7rem' }} />
+                          </Stack>
+
+                          <Box sx={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))',
+                            gap: 1
+                          }}>
+                            {linesInCategory.map(line => {
+                              const isSelected = selectedLine?.line_sort_code === line.line_sort_code;
+                              // const uniqueKey = `${line.line_sort_code}-${line.direction}`; // Not needed with groupedLines unique logic
+
+                              return (
+                                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} key={line.id}>
+                                  <Box
+                                    onClick={() => setSelectedLine(line)}
+                                    sx={{
+                                      aspectRatio: '1/1',
+                                      borderRadius: 3,
+                                      bgcolor: isSelected ? line.color : alpha(theme.palette.background.default, 0.5),
+                                      border: `2px solid ${isSelected ? '#fff' : (line.color || theme.palette.grey[700])}`,
+                                      color: isSelected ? '#fff' : theme.palette.text.primary,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      cursor: 'pointer',
+                                      fontWeight: 800,
+                                      fontSize: '1rem',
+                                      boxShadow: isSelected ? `0 8px 16px ${alpha(line.color || '#000', 0.4)}` : 'none',
+                                      transition: 'all 0.2s',
+                                    }}
+                                  >
+                                    {line.line_sort_code}
+                                  </Box>
+                                </motion.div>
+                              );
+                            })}
+                          </Box>
+                        </Box>
+                      );
+                    })
+                  )}
+                </Stack>
+              )}
+            </Box>
+          </Box>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 

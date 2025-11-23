@@ -42,12 +42,11 @@ const Header: React.FC<HeaderProps> = ({ onOpenAdminDashboard, onMenuClick }) =>
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
-  const { data: vehicles } = useVehicles(undefined, undefined, false);
+  // Vehicle count removed for performance
   const { data: alerts } = useAlerts();
   const { mode, toggleTheme } = useThemeStore();
   const [infoMenuAnchor, setInfoMenuAnchor] = useState<null | HTMLElement>(null);
 
-  const vehicleCount = vehicles?.length || 0;
   const alertCount = alerts?.length || 0;
   const lastUpdate = new Date().toLocaleTimeString('fr-FR', {
     hour: '2-digit',
@@ -65,13 +64,22 @@ const Header: React.FC<HeaderProps> = ({ onOpenAdminDashboard, onMenuClick }) =>
 
   return (
     <AppBar
-      position="fixed"
+      position="absolute"
       sx={{
+        top: { xs: 0, md: 24 }, // More spacing for floating effect
+        left: { xs: 0, md: 440 }, // Offset to avoid sidebar
+        right: { xs: 0, md: 24 },
+        width: 'auto',
+        borderRadius: { xs: 0, md: 24 }, // Match new border radius
         zIndex: Z_INDEX.header,
-        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.92)} 0%, ${alpha(theme.palette.primary.main, 0.92)} 50%, ${alpha(theme.palette.secondary.main, 0.92)} 100%)`,
-        backdropFilter: 'blur(20px)',
-        boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.2)}`,
-        borderBottom: `1px solid ${alpha(theme.palette.common.white, 0.1)}`,
+        background: {
+          xs: alpha(theme.palette.background.paper, 0.8),
+          md: alpha(theme.palette.background.default, 0.6) // More transparent on desktop
+        },
+        backdropFilter: 'blur(24px)',
+        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.4)', // Deep shadow
+        border: { xs: 'none', md: `1px solid ${alpha(theme.palette.common.white, 0.08)}` },
+        transition: 'all 0.3s ease',
       }}
     >
       <Toolbar
@@ -179,36 +187,22 @@ const Header: React.FC<HeaderProps> = ({ onOpenAdminDashboard, onMenuClick }) =>
         {/* Mobile/Tablet: Compact Stats + Info Menu */}
         {(isMobile || isTablet) && (
           <Stack direction="row" spacing={0.5} alignItems="center">
-            {/* Compact Badge Indicators */}
-            <Badge
-              badgeContent={vehicleCount}
-              color="success"
-              max={999}
+            {/* Info Menu Button */}
+            <IconButton
+              size="small"
+              onClick={handleInfoMenuOpen}
               sx={{
-                '& .MuiBadge-badge': {
-                  fontSize: '0.65rem',
-                  minWidth: 18,
-                  height: 18,
-                  fontWeight: 700,
+                color: 'white',
+                width: 36,
+                height: 36,
+                backgroundColor: alpha(theme.palette.common.white, 0.1),
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.common.white, 0.2),
                 },
               }}
             >
-              <IconButton
-                size="small"
-                onClick={handleInfoMenuOpen}
-                sx={{
-                  color: 'white',
-                  width: 36,
-                  height: 36,
-                  backgroundColor: alpha(theme.palette.common.white, 0.1),
-                  '&:hover': {
-                    backgroundColor: alpha(theme.palette.common.white, 0.2),
-                  },
-                }}
-              >
-                <InfoIcon fontSize="small" />
-              </IconButton>
-            </Badge>
+              <InfoIcon fontSize="small" />
+            </IconButton>
 
             {/* Alert Badge */}
             {alertCount > 0 && (
@@ -277,39 +271,6 @@ const Header: React.FC<HeaderProps> = ({ onOpenAdminDashboard, onMenuClick }) =>
         {/* Desktop: Full Stats */}
         {!isMobile && !isTablet && (
           <Stack direction="row" spacing={2}>
-            {/* Véhicules actifs */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1, duration: 0.4 }}
-            >
-              <Chip
-                icon={<DirectionsBusIcon sx={{ fontSize: 20 }} />}
-                label={`${vehicleCount} véhicules`}
-                size="medium"
-                sx={{
-                  backgroundColor: alpha(theme.palette.success.main, 0.25),
-                  color: 'white',
-                  fontWeight: 700,
-                  fontSize: '0.875rem',
-                  borderRadius: '14px',
-                  border: `2px solid ${alpha(theme.palette.success.light, 0.4)}`,
-                  backdropFilter: 'blur(10px)',
-                  px: 1.5,
-                  py: 2.5,
-                  transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
-                  '&:hover': {
-                    backgroundColor: alpha(theme.palette.success.main, 0.35),
-                    transform: 'translateY(-2px)',
-                    boxShadow: `0 8px 16px ${alpha(theme.palette.success.main, 0.3)}`,
-                  },
-                  '& .MuiChip-icon': {
-                    color: theme.palette.success.light,
-                  },
-                }}
-              />
-            </motion.div>
-
             {/* Alertes */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
@@ -512,16 +473,6 @@ const Header: React.FC<HeaderProps> = ({ onOpenAdminDashboard, onMenuClick }) =>
           },
         }}
       >
-        <MenuItem disabled>
-          <ListItemIcon>
-            <DirectionsBusIcon color="success" />
-          </ListItemIcon>
-          <ListItemText
-            primary="Véhicules actifs"
-            secondary={vehicleCount}
-            primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-          />
-        </MenuItem>
         <MenuItem disabled>
           <ListItemIcon>
             <WarningIcon color="warning" />

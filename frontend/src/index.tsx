@@ -5,7 +5,7 @@ import App from './App';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { darkTheme, lightTheme } from './theme';
+import { theme } from './theme';
 import { useThemeStore } from './stores/themeStore';
 
 const queryClient = new QueryClient({
@@ -18,9 +18,6 @@ const queryClient = new QueryClient({
 });
 
 function ThemedApp() {
-  const mode = useThemeStore((state) => state.mode);
-  const theme = mode === 'dark' ? darkTheme : lightTheme;
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -28,6 +25,8 @@ function ThemedApp() {
     </ThemeProvider>
   );
 }
+
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
@@ -38,3 +37,8 @@ root.render(
     <ThemedApp />
   </QueryClientProvider>
 );
+
+// If you want your app to work offline and load faster, you can change
+// unregister() to register() below. Note this comes with some pitfalls.
+// Learn more about service workers: https://cra.link/PWA
+serviceWorkerRegistration.register();

@@ -8,9 +8,6 @@ import { SIRIVehicleActivity } from '../../types';
  */
 export const ingestVehiclePositions = async (): Promise<void> => {
   try {
-    // Purge existing data before inserting fresh real-time data
-    await vehicleRepository.deleteAll();
-
     const vehicleActivities: SIRIVehicleActivity[] = await grandLyonApi.getVehicleMonitoring();
 
     if (!vehicleActivities || !Array.isArray(vehicleActivities)) {

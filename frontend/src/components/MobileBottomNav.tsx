@@ -36,10 +36,10 @@ const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ value, onChange, aler
         right: 0,
         zIndex: Z_INDEX.bottomNav,
         borderRadius: 0,
-        boxShadow: `0 -4px 24px ${alpha(theme.palette.common.black, 0.15)}`,
-        background: alpha(theme.palette.background.paper, 0.95),
-        backdropFilter: 'blur(20px)',
-        borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+        boxShadow: `0 -8px 32px ${alpha(theme.palette.common.black, 0.2)}`,
+        background: alpha(theme.palette.background.paper, 0.8), // Slightly more transparent
+        backdropFilter: 'blur(24px)', // Heavier blur
+        borderTop: `1px solid ${alpha(theme.palette.common.white, 0.08)}`,
       }}
       elevation={8}
     >

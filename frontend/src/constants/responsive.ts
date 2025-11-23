@@ -59,7 +59,7 @@ export const DIMENSIONS = {
 // Z-index layers
 export const Z_INDEX = {
   map: 0,
-  mapControls: 100,
+  mapControls: 1150, // Above sidebar (1100)
   sidebar: 1100,
   header: 1200,
   bottomNav: 1250,

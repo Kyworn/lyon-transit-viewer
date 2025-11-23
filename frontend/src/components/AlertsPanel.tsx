@@ -141,7 +141,7 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ open, onClose }) => {
   const totalAlerts = useMemo(() => {
     return Object.values(filteredGroupedAlerts).reduce((sum, transportGroups) =>
       sum + Object.values(transportGroups).reduce((subSum, alerts) => subSum + alerts.length, 0),
-    0);
+      0);
   }, [filteredGroupedAlerts]);
 
   const getSeverityColor = (severity?: string) => {
@@ -207,8 +207,9 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ open, onClose }) => {
       sx={{
         '& .MuiDrawer-paper': {
           width: { xs: '100%', sm: 450 },
-          bgcolor: alpha(theme.palette.background.default, 0.95),
-          backdropFilter: 'blur(10px)',
+          bgcolor: alpha(theme.palette.background.default, 0.85), // Darker glass
+          backdropFilter: 'blur(30px)', // Premium blur
+          borderLeft: `1px solid ${alpha(theme.palette.common.white, 0.08)}`,
         },
       }}
     >
@@ -219,123 +220,123 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ open, onClose }) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
         >
-        <Box
-          sx={{
-            p: 3,
-            background: `linear-gradient(135deg, ${alpha(theme.palette.warning.dark, 0.95)} 0%, ${alpha(theme.palette.warning.main, 0.95)} 100%)`,
-            color: 'white',
-            position: 'relative',
-            overflow: 'hidden',
-            boxShadow: `0 8px 32px ${alpha(theme.palette.warning.main, 0.3)}`,
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 100%)',
-            },
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5, position: 'relative' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box
-                sx={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: '12px',
-                  background: alpha(theme.palette.common.white, 0.2),
-                  backdropFilter: 'blur(10px)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: `2px solid ${alpha(theme.palette.common.white, 0.3)}`,
-                  boxShadow: `0 4px 12px ${alpha(theme.palette.common.black, 0.1)}`,
-                }}
-              >
-                <NotificationsActiveIcon sx={{ fontSize: 28 }} />
+          <Box
+            sx={{
+              p: { xs: 2, md: 3 },
+              background: `linear-gradient(135deg, ${alpha(theme.palette.warning.dark, 0.95)} 0%, ${alpha(theme.palette.warning.main, 0.95)} 100%)`,
+              color: 'white',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: `0 8px 32px ${alpha(theme.palette.warning.main, 0.3)}`,
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 100%)',
+              },
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: { xs: 1.5, md: 2.5 }, position: 'relative' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, md: 1.5 } }}>
+                <Box
+                  sx={{
+                    width: { xs: 40, md: 48 },
+                    height: { xs: 40, md: 48 },
+                    borderRadius: '12px',
+                    background: alpha(theme.palette.common.white, 0.2),
+                    backdropFilter: 'blur(10px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: `2px solid ${alpha(theme.palette.common.white, 0.3)}`,
+                    boxShadow: `0 4px 12px ${alpha(theme.palette.common.black, 0.1)}`,
+                  }}
+                >
+                  <NotificationsActiveIcon sx={{ fontSize: { xs: 24, md: 28 } }} />
+                </Box>
+                <Box>
+                  <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: '-0.5px', fontSize: { xs: '1.25rem', md: '1.5rem' } }}>
+                    Alertes Trafic
+                  </Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: { xs: '0.7rem', md: '0.75rem' } }}>
+                    En temps réel
+                  </Typography>
+                </Box>
               </Box>
-              <Box>
-                <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: '-0.5px' }}>
-                  Alertes Trafic
-                </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.75rem' }}>
-                  En temps réel
-                </Typography>
-              </Box>
+              <motion.div whileHover={{ scale: 1.1, rotate: 90 }} whileTap={{ scale: 0.95 }}>
+                <IconButton
+                  onClick={onClose}
+                  sx={{
+                    color: 'white',
+                    backgroundColor: alpha(theme.palette.common.white, 0.15),
+                    backdropFilter: 'blur(10px)',
+                    border: `2px solid ${alpha(theme.palette.common.white, 0.2)}`,
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.common.white, 0.25),
+                    },
+                  }}
+                >
+                  <CloseIcon />
+                </IconButton>
+              </motion.div>
             </Box>
-            <motion.div whileHover={{ scale: 1.1, rotate: 90 }} whileTap={{ scale: 0.95 }}>
-              <IconButton
-                onClick={onClose}
-                sx={{
-                  color: 'white',
-                  backgroundColor: alpha(theme.palette.common.white, 0.15),
-                  backdropFilter: 'blur(10px)',
-                  border: `2px solid ${alpha(theme.palette.common.white, 0.2)}`,
-                  '&:hover': {
-                    backgroundColor: alpha(theme.palette.common.white, 0.25),
-                  },
-                }}
-              >
-                <CloseIcon />
-              </IconButton>
-            </motion.div>
-          </Box>
 
-          <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ position: 'relative' }}>
-            <motion.div
-              initial={{ scale: 0, x: -20 }}
-              animate={{ scale: 1, x: 0 }}
-              transition={{ delay: 0.1, duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
-            >
-            <Chip
-              label={`${totalAlerts} alerte${totalAlerts > 1 ? 's' : ''}`}
-              sx={{
-                backgroundColor: alpha(theme.palette.common.white, 0.25),
-                backdropFilter: 'blur(10px)',
-                color: 'white',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                border: `2px solid ${alpha(theme.palette.common.white, 0.3)}`,
-                px: 1,
-                py: 2.5,
-                borderRadius: '12px',
-                transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
-                '&:hover': {
-                  backgroundColor: alpha(theme.palette.common.white, 0.35),
-                  transform: 'translateY(-2px)',
-                },
-              }}
-            />
-            </motion.div>
-            <motion.div
-              initial={{ scale: 0, x: -20 }}
-              animate={{ scale: 1, x: 0 }}
-              transition={{ delay: 0.2, duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
-            >
-            <Chip
-              label={`${Object.keys(filteredGroupedAlerts).length} ligne${Object.keys(filteredGroupedAlerts).length > 1 ? 's' : ''} touchée${Object.keys(filteredGroupedAlerts).length > 1 ? 's' : ''}`}
-              sx={{
-                backgroundColor: alpha(theme.palette.common.white, 0.25),
-                backdropFilter: 'blur(10px)',
-                color: 'white',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                border: `2px solid ${alpha(theme.palette.common.white, 0.3)}`,
-                px: 1,
-                py: 2.5,
-                borderRadius: '12px',
-                transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
-                '&:hover': {
-                  backgroundColor: alpha(theme.palette.common.white, 0.35),
-                  transform: 'translateY(-2px)',
-                },
-              }}
-            />
-            </motion.div>
-          </Stack>
-        </Box>
+            <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ position: 'relative' }}>
+              <motion.div
+                initial={{ scale: 0, x: -20 }}
+                animate={{ scale: 1, x: 0 }}
+                transition={{ delay: 0.1, duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
+              >
+                <Chip
+                  label={`${totalAlerts} alerte${totalAlerts > 1 ? 's' : ''}`}
+                  sx={{
+                    backgroundColor: alpha(theme.palette.common.white, 0.25),
+                    backdropFilter: 'blur(10px)',
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: { xs: '0.75rem', md: '0.875rem' },
+                    border: `2px solid ${alpha(theme.palette.common.white, 0.3)}`,
+                    px: { xs: 0.5, md: 1 },
+                    py: { xs: 2, md: 2.5 },
+                    borderRadius: '12px',
+                    transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.common.white, 0.35),
+                      transform: 'translateY(-2px)',
+                    },
+                  }}
+                />
+              </motion.div>
+              <motion.div
+                initial={{ scale: 0, x: -20 }}
+                animate={{ scale: 1, x: 0 }}
+                transition={{ delay: 0.2, duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
+              >
+                <Chip
+                  label={`${Object.keys(filteredGroupedAlerts).length} ligne${Object.keys(filteredGroupedAlerts).length > 1 ? 's' : ''} touchée${Object.keys(filteredGroupedAlerts).length > 1 ? 's' : ''}`}
+                  sx={{
+                    backgroundColor: alpha(theme.palette.common.white, 0.25),
+                    backdropFilter: 'blur(10px)',
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: { xs: '0.75rem', md: '0.875rem' },
+                    border: `2px solid ${alpha(theme.palette.common.white, 0.3)}`,
+                    px: { xs: 0.5, md: 1 },
+                    py: { xs: 2, md: 2.5 },
+                    borderRadius: '12px',
+                    transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.common.white, 0.35),
+                      transform: 'translateY(-2px)',
+                    },
+                  }}
+                />
+              </motion.div>
+            </Stack>
+          </Box>
         </motion.div>
 
         <Divider />
@@ -346,45 +347,45 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ open, onClose }) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
         >
-        <Box sx={{ p: 2.5 }}>
-          <TextField
-            fullWidth
-            size="medium"
-            placeholder="Rechercher une alerte ou ligne..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: theme.palette.text.secondary }} />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '14px',
-                backdropFilter: 'blur(10px)',
-                backgroundColor: alpha(theme.palette.background.paper, 0.8),
-                border: `2px solid ${alpha(theme.palette.divider, 0.1)}`,
-                transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
-                '& fieldset': {
-                  border: 'none',
+          <Box sx={{ p: 2.5 }}>
+            <TextField
+              fullWidth
+              size="medium"
+              placeholder="Rechercher une alerte ou ligne..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: theme.palette.text.secondary }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backdropFilter: 'blur(10px)',
+                  backgroundColor: alpha(theme.palette.background.paper, 0.8),
+                  border: `2px solid ${alpha(theme.palette.divider, 0.1)}`,
+                  transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
+                  '& fieldset': {
+                    border: 'none',
+                  },
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.background.paper, 0.9),
+                    borderColor: alpha(theme.palette.primary.main, 0.3),
+                    transform: 'translateY(-2px)',
+                    boxShadow: `0 8px 24px ${alpha(theme.palette.common.black, 0.08)}`,
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: theme.palette.background.paper,
+                    borderColor: theme.palette.primary.main,
+                    boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.15)}`,
+                  },
                 },
-                '&:hover': {
-                  backgroundColor: alpha(theme.palette.background.paper, 0.9),
-                  borderColor: alpha(theme.palette.primary.main, 0.3),
-                  transform: 'translateY(-2px)',
-                  boxShadow: `0 8px 24px ${alpha(theme.palette.common.black, 0.08)}`,
-                },
-                '&.Mui-focused': {
-                  backgroundColor: theme.palette.background.paper,
-                  borderColor: theme.palette.primary.main,
-                  boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.15)}`,
-                },
-              },
-            }}
-          />
-        </Box>
+              }}
+            />
+          </Box>
         </motion.div>
 
         {/* Grouped Alerts List */}
@@ -405,324 +406,324 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ open, onClose }) => {
           )}
 
           <AnimatePresence>
-          {!isLoading && Object.entries(filteredGroupedAlerts)
-            .map(([severityLabel, transportGroups], severityIdx) => {
-              // Compter le total d'alertes pour ce niveau de sévérité
-              const totalAlertsInSeverity = Object.values(transportGroups).reduce((sum, alerts) => sum + alerts.length, 0);
-              const isSeverityExpanded = expandedLines.has(severityLabel);
+            {!isLoading && Object.entries(filteredGroupedAlerts)
+              .map(([severityLabel, transportGroups], severityIdx) => {
+                // Compter le total d'alertes pour ce niveau de sévérité
+                const totalAlertsInSeverity = Object.values(transportGroups).reduce((sum, alerts) => sum + alerts.length, 0);
+                const isSeverityExpanded = expandedLines.has(severityLabel);
 
-              // Déterminer la couleur basée sur le type de sévérité
-              let severityColor = theme.palette.info.main;
-              if (severityLabel.includes('Perturbations importantes')) severityColor = theme.palette.error.main;
-              else if (severityLabel.includes('Retards')) severityColor = theme.palette.warning.main;
+                // Déterminer la couleur basée sur le type de sévérité
+                let severityColor = theme.palette.info.main;
+                if (severityLabel.includes('Perturbations importantes')) severityColor = theme.palette.error.main;
+                else if (severityLabel.includes('Retards')) severityColor = theme.palette.warning.main;
 
-              return (
-                <motion.div
-                  key={severityLabel}
-                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                  transition={{ delay: severityIdx * 0.05, duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
-                >
-                  {/* Accordion de Sévérité */}
-                  <Accordion
-                    expanded={isSeverityExpanded}
-                    onChange={() => toggleLineExpanded(severityLabel)}
-                    sx={{
-                      mb: 2,
-                      borderRadius: '18px !important',
-                      border: `3px solid ${alpha(severityColor, 0.4)}`,
-                      background: `linear-gradient(135deg, ${alpha(severityColor, 0.12)} 0%, ${alpha(severityColor, 0.05)} 100%)`,
-                      backdropFilter: 'blur(10px)',
-                      '&:before': { display: 'none' },
-                      boxShadow: `0 6px 24px ${alpha(severityColor, 0.15)}`,
-                      transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
-                      '&:hover': {
-                        borderColor: alpha(severityColor, 0.6),
-                        boxShadow: `0 10px 32px ${alpha(severityColor, 0.25)}`,
-                        transform: 'translateY(-2px)',
-                      },
-                    }}
+                return (
+                  <motion.div
+                    key={severityLabel}
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                    transition={{ delay: severityIdx * 0.05, duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
                   >
-                    <AccordionSummary
-                      expandIcon={<ExpandMoreIcon sx={{ fontSize: 28 }} />}
+                    {/* Accordion de Sévérité */}
+                    <Accordion
+                      expanded={isSeverityExpanded}
+                      onChange={() => toggleLineExpanded(severityLabel)}
                       sx={{
-                        borderRadius: '16px',
-                        py: 1.5,
+                        mb: 2,
+                        borderRadius: '18px !important',
+                        border: `3px solid ${alpha(severityColor, 0.4)}`,
+                        background: `linear-gradient(135deg, ${alpha(severityColor, 0.12)} 0%, ${alpha(severityColor, 0.05)} 100%)`,
+                        backdropFilter: 'blur(10px)',
+                        '&:before': { display: 'none' },
+                        boxShadow: `0 6px 24px ${alpha(severityColor, 0.15)}`,
                         transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
                         '&:hover': {
-                          backgroundColor: alpha(severityColor, 0.15),
+                          borderColor: alpha(severityColor, 0.6),
+                          boxShadow: `0 10px 32px ${alpha(severityColor, 0.25)}`,
+                          transform: 'translateY(-2px)',
                         },
                       }}
                     >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%', pr: 1 }}>
-                        <Box
-                          sx={{
-                            width: 56,
-                            height: 56,
-                            borderRadius: '14px',
-                            background: `linear-gradient(135deg, ${alpha(severityColor, 0.3)} 0%, ${alpha(severityColor, 0.2)} 100%)`,
-                            backdropFilter: 'blur(10px)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: severityColor,
-                            border: `2px solid ${alpha(severityColor, 0.4)}`,
-                            boxShadow: `0 4px 16px ${alpha(severityColor, 0.2)}`,
-                            fontSize: 32,
-                          }}
-                        >
-                          {severityLabel.substring(0, 2)}
-                        </Box>
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography
-                            variant="h6"
+                      <AccordionSummary
+                        expandIcon={<ExpandMoreIcon sx={{ fontSize: 28 }} />}
+                        sx={{
+                          borderRadius: '16px',
+                          py: 1.5,
+                          transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
+                          '&:hover': {
+                            backgroundColor: alpha(severityColor, 0.15),
+                          },
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%', pr: 1 }}>
+                          <Box
                             sx={{
-                              fontWeight: 800,
-                              color: theme.palette.text.primary,
-                              letterSpacing: '-0.5px',
-                              fontSize: '1.1rem',
-                            }}
-                          >
-                            {severityLabel}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: alpha(theme.palette.text.secondary, 0.8), fontSize: '0.75rem' }}>
-                            {totalAlertsInSeverity} alerte{totalAlertsInSeverity > 1 ? 's' : ''}
-                          </Typography>
-                        </Box>
-                        <Chip
-                          size="medium"
-                          label={totalAlertsInSeverity}
-                          sx={{
-                            background: `linear-gradient(135deg, ${severityColor} 0%, ${alpha(severityColor, 0.8)} 100%)`,
-                            color: 'white',
-                            fontWeight: 800,
-                            minWidth: 42,
-                            height: 32,
-                            borderRadius: '12px',
-                            fontSize: '0.95rem',
-                            boxShadow: `0 4px 12px ${alpha(severityColor, 0.4)}`,
-                          }}
-                        />
-                      </Box>
-                    </AccordionSummary>
-
-                    <AccordionDetails sx={{ p: 2, pt: 0 }}>
-                      {/* Accordions de Type de Transport */}
-                      {Object.entries(transportGroups).map(([transportType, transportAlerts], transportIdx) => {
-                        const isTransportExpanded = expandedLines.has(`${severityLabel}-${transportType}`);
-
-                        return (
-                          <Accordion
-                            key={transportType}
-                            expanded={isTransportExpanded}
-                            onChange={() => toggleLineExpanded(`${severityLabel}-${transportType}`)}
-                            sx={{
-                              mb: 1.5,
-                              borderRadius: '14px !important',
-                              border: `2px solid ${alpha(severityColor, 0.25)}`,
-                              background: `linear-gradient(135deg, ${alpha(severityColor, 0.06)} 0%, ${alpha(severityColor, 0.02)} 100%)`,
+                              width: 56,
+                              height: 56,
+                              borderRadius: '14px',
+                              background: `linear-gradient(135deg, ${alpha(severityColor, 0.3)} 0%, ${alpha(severityColor, 0.2)} 100%)`,
                               backdropFilter: 'blur(10px)',
-                              '&:before': { display: 'none' },
-                              boxShadow: `0 3px 12px ${alpha(severityColor, 0.08)}`,
-                              transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
-                              '&:hover': {
-                                borderColor: alpha(severityColor, 0.4),
-                                boxShadow: `0 6px 20px ${alpha(severityColor, 0.15)}`,
-                                transform: 'translateY(-1px)',
-                              },
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: severityColor,
+                              border: `2px solid ${alpha(severityColor, 0.4)}`,
+                              boxShadow: `0 4px 16px ${alpha(severityColor, 0.2)}`,
+                              fontSize: 32,
                             }}
                           >
-                            <AccordionSummary
-                              expandIcon={<ExpandMoreIcon />}
+                            {severityLabel.substring(0, 2)}
+                          </Box>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography
+                              variant="h6"
                               sx={{
-                                borderRadius: '12px',
+                                fontWeight: 800,
+                                color: theme.palette.text.primary,
+                                letterSpacing: '-0.5px',
+                                fontSize: '1.1rem',
+                              }}
+                            >
+                              {severityLabel}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: alpha(theme.palette.text.secondary, 0.8), fontSize: '0.75rem' }}>
+                              {totalAlertsInSeverity} alerte{totalAlertsInSeverity > 1 ? 's' : ''}
+                            </Typography>
+                          </Box>
+                          <Chip
+                            size="medium"
+                            label={totalAlertsInSeverity}
+                            sx={{
+                              background: `linear-gradient(135deg, ${severityColor} 0%, ${alpha(severityColor, 0.8)} 100%)`,
+                              color: 'white',
+                              fontWeight: 800,
+                              minWidth: 42,
+                              height: 32,
+                              borderRadius: '12px',
+                              fontSize: '0.95rem',
+                              boxShadow: `0 4px 12px ${alpha(severityColor, 0.4)}`,
+                            }}
+                          />
+                        </Box>
+                      </AccordionSummary>
+
+                      <AccordionDetails sx={{ p: 2, pt: 0 }}>
+                        {/* Accordions de Type de Transport */}
+                        {Object.entries(transportGroups).map(([transportType, transportAlerts], transportIdx) => {
+                          const isTransportExpanded = expandedLines.has(`${severityLabel}-${transportType}`);
+
+                          return (
+                            <Accordion
+                              key={transportType}
+                              expanded={isTransportExpanded}
+                              onChange={() => toggleLineExpanded(`${severityLabel}-${transportType}`)}
+                              sx={{
+                                mb: 1.5,
+                                borderRadius: '14px !important',
+                                border: `2px solid ${alpha(severityColor, 0.25)}`,
+                                background: `linear-gradient(135deg, ${alpha(severityColor, 0.06)} 0%, ${alpha(severityColor, 0.02)} 100%)`,
+                                backdropFilter: 'blur(10px)',
+                                '&:before': { display: 'none' },
+                                boxShadow: `0 3px 12px ${alpha(severityColor, 0.08)}`,
                                 transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
                                 '&:hover': {
-                                  backgroundColor: alpha(severityColor, 0.1),
+                                  borderColor: alpha(severityColor, 0.4),
+                                  boxShadow: `0 6px 20px ${alpha(severityColor, 0.15)}`,
+                                  transform: 'translateY(-1px)',
                                 },
                               }}
                             >
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', pr: 1 }}>
-                                <Box
-                                  sx={{
-                                    width: 44,
-                                    height: 44,
-                                    borderRadius: '11px',
-                                    background: `linear-gradient(135deg, ${alpha(severityColor, 0.2)} 0%, ${alpha(severityColor, 0.12)} 100%)`,
-                                    backdropFilter: 'blur(10px)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: severityColor,
-                                    border: `2px solid ${alpha(severityColor, 0.25)}`,
-                                    boxShadow: `0 3px 10px ${alpha(severityColor, 0.12)}`,
-                                  }}
-                                >
-                                  <RouteIcon sx={{ fontSize: 22 }} />
-                                </Box>
-                                <Box sx={{ flex: 1, minWidth: 0 }}>
-                                  <Typography
-                                    variant="subtitle1"
-                                    sx={{
-                                      fontWeight: 700,
-                                      color: theme.palette.text.primary,
-                                      letterSpacing: '-0.3px',
-                                      fontSize: '0.95rem',
-                                    }}
-                                    noWrap
-                                  >
-                                    {transportType}
-                                  </Typography>
-                                  <Typography variant="caption" sx={{ color: alpha(theme.palette.text.secondary, 0.8), fontSize: '0.7rem' }}>
-                                    {transportAlerts.length} alerte{transportAlerts.length > 1 ? 's' : ''}
-                                  </Typography>
-                                </Box>
-                                <Chip
-                                  size="small"
-                                  label={transportAlerts.length}
-                                  sx={{
-                                    background: `linear-gradient(135deg, ${severityColor} 0%, ${alpha(severityColor, 0.8)} 100%)`,
-                                    color: 'white',
-                                    fontWeight: 700,
-                                    minWidth: 32,
-                                    height: 26,
-                                    borderRadius: '9px',
-                                    fontSize: '0.8rem',
-                                    boxShadow: `0 3px 10px ${alpha(severityColor, 0.25)}`,
-                                  }}
-                                />
-                              </Box>
-                            </AccordionSummary>
-
-                            <AccordionDetails sx={{ p: 0 }}>
-                              <Divider />
-                              <List dense sx={{ py: 1.5, px: 1 }}>
-                                <AnimatePresence>
-                                {transportAlerts.map((alert, index) => {
-                        const alertSeverityColor = getSeverityColor(alert.severity_type);
-
-                        return (
-                          <motion.div
-                            key={index}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 10 }}
-                            transition={{ delay: index * 0.05, duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
-                          >
-                          <ListItemButton
-                            onClick={() => handleAlertClick(alert)}
-                            sx={{
-                              borderRadius: '12px',
-                              mb: 1,
-                              px: 2,
-                              py: 1.5,
-                              border: `2px solid ${alpha(alertSeverityColor, 0.25)}`,
-                              background: `linear-gradient(135deg, ${alpha(alertSeverityColor, 0.08)} 0%, ${alpha(alertSeverityColor, 0.03)} 100%)`,
-                              backdropFilter: 'blur(10px)',
-                              transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
-                              boxShadow: `0 2px 8px ${alpha(alertSeverityColor, 0.08)}`,
-                              cursor: 'pointer',
-                              '&:hover': {
-                                backgroundColor: alpha(alertSeverityColor, 0.15),
-                                borderColor: alpha(alertSeverityColor, 0.4),
-                                transform: 'translateX(4px)',
-                                boxShadow: `0 4px 16px ${alpha(alertSeverityColor, 0.15)}`,
-                              },
-                            }}
-                          >
-                            <ListItemIcon sx={{ minWidth: 40 }}>
-                              <Box
+                              <AccordionSummary
+                                expandIcon={<ExpandMoreIcon />}
                                 sx={{
-                                  width: 32,
-                                  height: 32,
-                                  borderRadius: '8px',
-                                  background: `linear-gradient(135deg, ${alpha(alertSeverityColor, 0.2)} 0%, ${alpha(alertSeverityColor, 0.1)} 100%)`,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  color: alertSeverityColor,
+                                  borderRadius: '12px',
+                                  transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
+                                  '&:hover': {
+                                    backgroundColor: alpha(severityColor, 0.1),
+                                  },
                                 }}
                               >
-                                {getSeverityIcon(alert.severity_type)}
-                              </Box>
-                            </ListItemIcon>
-                            <ListItemText
-                              primary={alert.title}
-                              secondary={
-                                <Box>
-                                  <Typography
-                                    variant="body2"
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', pr: 1 }}>
+                                  <Box
                                     sx={{
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      display: '-webkit-box',
-                                      WebkitLineClamp: 2,
-                                      WebkitBoxOrient: 'vertical',
-                                      color: alpha(theme.palette.text.secondary, 0.9),
-                                      fontSize: '0.8rem',
-                                      mb: alert.affected_lines?.length ? 0.5 : 0,
+                                      width: 44,
+                                      height: 44,
+                                      borderRadius: '11px',
+                                      background: `linear-gradient(135deg, ${alpha(severityColor, 0.2)} 0%, ${alpha(severityColor, 0.12)} 100%)`,
+                                      backdropFilter: 'blur(10px)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      color: severityColor,
+                                      border: `2px solid ${alpha(severityColor, 0.25)}`,
+                                      boxShadow: `0 3px 10px ${alpha(severityColor, 0.12)}`,
                                     }}
                                   >
-                                    {alert.message}
-                                  </Typography>
-                                  {alert.affected_lines && alert.affected_lines.length > 0 && (
-                                    <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                                      {alert.affected_lines.slice(0, 5).map((line, idx) => (
-                                        <Chip
-                                          key={idx}
-                                          label={line}
-                                          size="small"
-                                          sx={{
-                                            height: 20,
-                                            fontSize: '0.65rem',
-                                            fontWeight: 700,
-                                            backgroundColor: alpha(alertSeverityColor, 0.15),
-                                            color: alertSeverityColor,
-                                            border: `1px solid ${alpha(alertSeverityColor, 0.3)}`,
-                                          }}
-                                        />
-                                      ))}
-                                      {alert.affected_lines.length > 5 && (
-                                        <Chip
-                                          label={`+${alert.affected_lines.length - 5}`}
-                                          size="small"
-                                          sx={{
-                                            height: 20,
-                                            fontSize: '0.65rem',
-                                            fontWeight: 700,
-                                            backgroundColor: alpha(alertSeverityColor, 0.2),
-                                            color: alertSeverityColor,
-                                          }}
-                                        />
-                                      )}
-                                    </Stack>
-                                  )}
+                                    <RouteIcon sx={{ fontSize: 22 }} />
+                                  </Box>
+                                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Typography
+                                      variant="subtitle1"
+                                      sx={{
+                                        fontWeight: 700,
+                                        color: theme.palette.text.primary,
+                                        letterSpacing: '-0.3px',
+                                        fontSize: '0.95rem',
+                                      }}
+                                      noWrap
+                                    >
+                                      {transportType}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ color: alpha(theme.palette.text.secondary, 0.8), fontSize: '0.7rem' }}>
+                                      {transportAlerts.length} alerte{transportAlerts.length > 1 ? 's' : ''}
+                                    </Typography>
+                                  </Box>
+                                  <Chip
+                                    size="small"
+                                    label={transportAlerts.length}
+                                    sx={{
+                                      background: `linear-gradient(135deg, ${severityColor} 0%, ${alpha(severityColor, 0.8)} 100%)`,
+                                      color: 'white',
+                                      fontWeight: 700,
+                                      minWidth: 32,
+                                      height: 26,
+                                      borderRadius: '9px',
+                                      fontSize: '0.8rem',
+                                      boxShadow: `0 3px 10px ${alpha(severityColor, 0.25)}`,
+                                    }}
+                                  />
                                 </Box>
-                              }
-                              primaryTypographyProps={{
-                                fontSize: '0.9rem',
-                                fontWeight: 700,
-                                noWrap: true,
-                                sx: { mb: 0.5 },
-                              }}
-                            />
+                              </AccordionSummary>
+
+                              <AccordionDetails sx={{ p: 0 }}>
+                                <Divider />
+                                <List dense sx={{ py: 1.5, px: 1 }}>
+                                  <AnimatePresence>
+                                    {transportAlerts.map((alert, index) => {
+                                      const alertSeverityColor = getSeverityColor(alert.severity_type);
+
+                                      return (
+                                        <motion.div
+                                          key={index}
+                                          initial={{ opacity: 0, x: -10 }}
+                                          animate={{ opacity: 1, x: 0 }}
+                                          exit={{ opacity: 0, x: 10 }}
+                                          transition={{ delay: index * 0.05, duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
+                                        >
+                                          <ListItemButton
+                                            onClick={() => handleAlertClick(alert)}
+                                            sx={{
+                                              borderRadius: '12px',
+                                              mb: 1,
+                                              px: 2,
+                                              py: 1.5,
+                                              border: `2px solid ${alpha(alertSeverityColor, 0.25)}`,
+                                              background: `linear-gradient(135deg, ${alpha(alertSeverityColor, 0.08)} 0%, ${alpha(alertSeverityColor, 0.03)} 100%)`,
+                                              backdropFilter: 'blur(10px)',
+                                              transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
+                                              boxShadow: `0 2px 8px ${alpha(alertSeverityColor, 0.08)}`,
+                                              cursor: 'pointer',
+                                              '&:hover': {
+                                                backgroundColor: alpha(alertSeverityColor, 0.15),
+                                                borderColor: alpha(alertSeverityColor, 0.4),
+                                                transform: 'translateX(4px)',
+                                                boxShadow: `0 4px 16px ${alpha(alertSeverityColor, 0.15)}`,
+                                              },
+                                            }}
+                                          >
+                                            <ListItemIcon sx={{ minWidth: 40 }}>
+                                              <Box
+                                                sx={{
+                                                  width: 32,
+                                                  height: 32,
+                                                  borderRadius: '8px',
+                                                  background: `linear-gradient(135deg, ${alpha(alertSeverityColor, 0.2)} 0%, ${alpha(alertSeverityColor, 0.1)} 100%)`,
+                                                  display: 'flex',
+                                                  alignItems: 'center',
+                                                  justifyContent: 'center',
+                                                  color: alertSeverityColor,
+                                                }}
+                                              >
+                                                {getSeverityIcon(alert.severity_type)}
+                                              </Box>
+                                            </ListItemIcon>
+                                            <ListItemText
+                                              primary={alert.title}
+                                              secondary={
+                                                <Box>
+                                                  <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                      overflow: 'hidden',
+                                                      textOverflow: 'ellipsis',
+                                                      display: '-webkit-box',
+                                                      WebkitLineClamp: 2,
+                                                      WebkitBoxOrient: 'vertical',
+                                                      color: alpha(theme.palette.text.secondary, 0.9),
+                                                      fontSize: '0.8rem',
+                                                      mb: alert.affected_lines?.length ? 0.5 : 0,
+                                                    }}
+                                                  >
+                                                    {alert.message}
+                                                  </Typography>
+                                                  {alert.affected_lines && alert.affected_lines.length > 0 && (
+                                                    <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                                                      {alert.affected_lines.slice(0, 5).map((line, idx) => (
+                                                        <Chip
+                                                          key={idx}
+                                                          label={line}
+                                                          size="small"
+                                                          sx={{
+                                                            height: 20,
+                                                            fontSize: '0.65rem',
+                                                            fontWeight: 700,
+                                                            backgroundColor: alpha(alertSeverityColor, 0.15),
+                                                            color: alertSeverityColor,
+                                                            border: `1px solid ${alpha(alertSeverityColor, 0.3)}`,
+                                                          }}
+                                                        />
+                                                      ))}
+                                                      {alert.affected_lines.length > 5 && (
+                                                        <Chip
+                                                          label={`+${alert.affected_lines.length - 5}`}
+                                                          size="small"
+                                                          sx={{
+                                                            height: 20,
+                                                            fontSize: '0.65rem',
+                                                            fontWeight: 700,
+                                                            backgroundColor: alpha(alertSeverityColor, 0.2),
+                                                            color: alertSeverityColor,
+                                                          }}
+                                                        />
+                                                      )}
+                                                    </Stack>
+                                                  )}
+                                                </Box>
+                                              }
+                                              primaryTypographyProps={{
+                                                fontSize: '0.9rem',
+                                                fontWeight: 700,
+                                                noWrap: true,
+                                                sx: { mb: 0.5 },
+                                              }}
+                                            />
                                           </ListItemButton>
-                                          </motion.div>
-                                        );
-                                      })}
-                                      </AnimatePresence>
-                                    </List>
-                                  </AccordionDetails>
-                                </Accordion>
-                              );
-                            })}
-                          </AccordionDetails>
-                        </Accordion>
-                      </motion.div>
-                    );
-                  })}
-                  </AnimatePresence>
+                                        </motion.div>
+                                      );
+                                    })}
+                                  </AnimatePresence>
+                                </List>
+                              </AccordionDetails>
+                            </Accordion>
+                          );
+                        })}
+                      </AccordionDetails>
+                    </Accordion>
+                  </motion.div>
+                );
+              })}
+          </AnimatePresence>
         </Box>
       </Box>
 

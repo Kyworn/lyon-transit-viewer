@@ -1,15 +1,36 @@
-import React from 'react';
-import { Box, Typography, IconButton, Chip, Stack, Divider, CircularProgress, List, ListItem, ListItemText, Button } from '@mui/material';
+import React, { useMemo } from 'react';
+import {
+  Box,
+  Typography,
+  IconButton,
+  Chip,
+  Stack,
+  Divider,
+  CircularProgress,
+  List,
+  ListItem,
+  Button,
+  Drawer,
+  useTheme,
+  useMediaQuery,
+  alpha,
+  Card,
+  CardContent,
+  Fade,
+  SwipeableDrawer,
+} from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AccessibleIcon from '@mui/icons-material/Accessible';
 import ElevatorIcon from '@mui/icons-material/Elevator';
 import EscalatorIcon from '@mui/icons-material/Escalator';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import ScheduleIcon from '@mui/icons-material/Schedule';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
+import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { Stop, LineIcon } from '../types';
 import { useNextPassages } from '../hooks/useNextPassages';
 import { useSelectionStore } from '../stores/selectionStore';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface StopDetailsModalProps {
   stop: Stop | null;
@@ -18,16 +39,14 @@ interface StopDetailsModalProps {
   anchorPosition: { top: number; left: number } | null;
 }
 
-const StopDetailsModal: React.FC<StopDetailsModalProps> = ({ stop, onClose, lineIcons, anchorPosition }) => {
+const StopDetailsModal: React.FC<StopDetailsModalProps> = ({ stop, onClose, lineIcons }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { data: nextPassages, isLoading: isLoadingPassages } = useNextPassages(stop?.id || null, !!stop);
   const setCenterCoordinates = useSelectionStore((state) => state.setCenterCoordinates);
 
-  if (!stop || !anchorPosition) {
-    return null;
-  }
-
   const formatDuration = (duration: string) => {
-    if (!duration || duration === 'PT0S') return "À l'heure";
+    if (!duration || duration === 'PT0S') return "À l'approche";
     const match = duration.match(/PT(?:(-?)(\d+)H)?(?:(-?)(\d+)M)?(?:(-?)(\d+)S)?/);
     if (!match) return duration;
 
@@ -37,11 +56,11 @@ const StopDetailsModal: React.FC<StopDetailsModalProps> = ({ stop, onClose, line
 
     let formatted = '';
     if (hours > 0) formatted += `${hours}h `;
-    if (minutes > 0) formatted += `${minutes}m`;
+    if (minutes > 0) formatted += `${minutes} min`;
 
-    if (formatted.trim() === '') return "À l'heure";
+    if (formatted.trim() === '') return "À l'approche";
 
-    return sign === '-' ? `Avance ${formatted.trim()}` : `Retard ${formatted.trim()}`;
+    return sign === '-' ? `Avance ${formatted.trim()}` : `${formatted.trim()}`;
   };
 
   // Parse ISO 8601 duration to get delay in minutes
@@ -58,206 +77,304 @@ const StopDetailsModal: React.FC<StopDetailsModalProps> = ({ stop, onClose, line
     return sign === '-' ? -totalMinutes : totalMinutes;
   };
 
-  // Filter passages to only show future ones (considering delays)
-  const filterFuturePassages = (passages: any[]) => {
+  // Filter passages to only show future ones
+  const futurePassages = useMemo(() => {
+    if (!nextPassages) return [];
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     const currentTotalMinutes = currentHour * 60 + currentMinute;
 
-    return passages.filter(passage => {
+    return nextPassages.filter(passage => {
       if (!passage.scheduled_arrival_time) return false;
-
-      // Parse scheduled time (format: "HH:MM:SS" or "HH:MM")
       const [hours, minutes] = passage.scheduled_arrival_time.split(':').map(Number);
       const scheduledMinutes = hours * 60 + minutes;
-
-      // Add delay to get actual arrival time
       const delayMinutes = parseDurationToMinutes(passage.delay || 'PT0S');
       const actualArrivalMinutes = scheduledMinutes + delayMinutes;
 
-      // Only show if actual arrival is in the future
-      return actualArrivalMinutes > currentTotalMinutes;
-    });
-  };
+      // Handle midnight crossing roughly
+      if (actualArrivalMinutes < currentTotalMinutes && (currentTotalMinutes - actualArrivalMinutes) > 180) {
+        return true; // Probably next day
+      }
 
-  // Parse service_info to extract lines serving this stop
-  const servingLines = stop.service_info
-    ? stop.service_info.split(',').map(service => {
-        const [lineCode, direction] = service.split(':');
-        return { lineCode, direction: direction === 'A' ? 'Aller' : 'Retour' };
-      })
-    : [];
+      return actualArrivalMinutes >= currentTotalMinutes;
+    }).slice(0, 5);
+  }, [nextPassages]);
 
   // Get unique line codes
-  const uniqueLines = Array.from(new Set(servingLines.map(l => l.lineCode)));
+  const uniqueLines = useMemo(() => {
+    if (!stop?.service_info) return [];
+    const servingLines = stop.service_info.split(',').map(service => {
+      const [lineCode] = service.split(':');
+      return lineCode;
+    });
+    return Array.from(new Set(servingLines));
+  }, [stop]);
 
-  const style = {
-    position: 'absolute' as 'absolute',
-    top: `${anchorPosition.top}px`,
-    left: `${anchorPosition.left}px`,
-    transform: 'translate(-50%, -110%)',
-    width: 350,
-    bgcolor: 'background.paper',
-    border: '2px solid #000',
-    boxShadow: 24,
-    p: 2,
-    zIndex: 1300,
-    maxHeight: '400px',
-    overflowY: 'auto',
-  };
+  if (!stop) return null;
 
-  return (
-    <Box sx={style}>
-      <IconButton
-        aria-label="close"
-        onClick={onClose}
+  const Content = () => (
+    <Box sx={{ p: 0 }}>
+      {/* Header with Glass Effect */}
+      <Box
         sx={{
-          position: 'absolute',
-          right: 8,
-          top: 8,
-          color: (theme) => theme.palette.grey[500],
+          p: 3,
+          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, transparent 100%)`,
+          borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
-        <CloseIcon />
-      </IconButton>
-
-      <Typography variant="h6" component="h2" sx={{ pr: 4, mb: 1 }}>
-        {stop.name}
-      </Typography>
-
-      {/* Lines serving this stop */}
-      {uniqueLines.length > 0 && (
-        <>
-          <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontWeight: 'bold' }}>
-            Lignes desservies
-          </Typography>
-          <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-            {uniqueLines.map((lineCode) => {
-              const icon = lineIcons?.find(li => li.code_ligne === lineCode);
-              return icon ? (
-                <img
-                  key={lineCode}
-                  src={`/icons/${icon.picto_ligne}`}
-                  alt={lineCode}
-                  style={{ width: 32, height: 32, margin: '2px' }}
-                />
-              ) : (
-                <Chip key={lineCode} label={lineCode} size="small" />
-              );
-            })}
-          </Stack>
-        </>
-      )}
-
-      {/* Next passages */}
-      <Divider sx={{ my: 2 }} />
-      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
-        Prochains passages
-      </Typography>
-      {isLoadingPassages ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-          <CircularProgress size={24} />
-        </Box>
-      ) : nextPassages && nextPassages.length > 0 ? (
-        <List dense sx={{ py: 0 }}>
-          {filterFuturePassages(nextPassages).slice(0, 5).map((passage, index) => {
-            const icon = lineIcons?.find(li => li.code_ligne === passage.published_line_name);
-            return (
-              <ListItem key={index} sx={{ px: 0 }}>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%' }}>
-                  {icon ? (
-                    <img
-                      src={`/icons/${icon.picto_ligne}`}
-                      alt={passage.published_line_name}
-                      style={{ width: 24, height: 24 }}
-                    />
-                  ) : (
-                    <Chip label={passage.published_line_name} size="small" />
-                  )}
-                  <Box sx={{ flexGrow: 1 }}>
-                    <Typography variant="body2">
-                      {passage.line_destination || 'Destination inconnue'}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {passage.scheduled_arrival_time ? passage.scheduled_arrival_time.slice(0, 5) : 'Horaire inconnu'}
-                      {passage.delay && passage.delay !== 'PT0S' && ` - ${formatDuration(passage.delay)}`}
-                    </Typography>
-                  </Box>
-                </Stack>
-              </ListItem>
-            );
-          })}
-        </List>
-      ) : (
-        <Typography variant="body2" color="text.secondary">
-          Aucun passage prévu prochainement
-        </Typography>
-      )}
-
-      <Divider sx={{ my: 2 }} />
-
-      {/* Location info */}
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1 }}>
-        <LocationOnIcon fontSize="small" color="action" />
-        <Box>
-          <Typography variant="body2">
-            {stop.address || 'Adresse non disponible'}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {stop.municipality}
-          </Typography>
-          {stop.zone && (
-            <Typography variant="caption" color="text.secondary">
-              Zone: {stop.zone}
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+          <Box>
+            <Typography variant="overline" color="primary" sx={{ fontWeight: 700, letterSpacing: 1.2 }}>
+              ARRÊT
             </Typography>
-          )}
-        </Box>
+            <Typography variant="h4" sx={{ fontFamily: 'Space Grotesk', fontWeight: 700, mb: 0.5 }}>
+              {stop.name}
+            </Typography>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <LocationOnIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+              <Typography variant="body2" color="text.secondary">
+                {stop.municipality}
+              </Typography>
+              {stop.zone && (
+                <Chip
+                  label={`Zone ${stop.zone}`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ height: 20, fontSize: '0.65rem', borderColor: theme.palette.divider }}
+                />
+              )}
+            </Stack>
+          </Box>
+          <IconButton onClick={onClose} sx={{ bgcolor: alpha(theme.palette.background.paper, 0.2) }}>
+            <CloseIcon />
+          </IconButton>
+        </Stack>
       </Box>
 
-      {/* Accessibility */}
-      <Divider sx={{ my: 2 }} />
-      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
-        Accessibilité
-      </Typography>
-      <Stack direction="row" spacing={2}>
-        {stop.pmr_accessible && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <AccessibleIcon fontSize="small" color="primary" />
-            <Typography variant="caption">PMR</Typography>
-          </Box>
-        )}
-        {stop.has_elevator && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <ElevatorIcon fontSize="small" color="primary" />
-            <Typography variant="caption">Ascenseur</Typography>
-          </Box>
-        )}
-        {stop.has_escalator && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <EscalatorIcon fontSize="small" color="primary" />
-            <Typography variant="caption">Escalator</Typography>
-          </Box>
-        )}
-        {!stop.pmr_accessible && !stop.has_elevator && !stop.has_escalator && (
-          <Typography variant="caption" color="text.secondary">
-            Aucune information d'accessibilité
-          </Typography>
-        )}
-      </Stack>
+      <Box sx={{ p: 3 }}>
+        {/* Accessibility Badges */}
+        <Stack direction="row" spacing={1} mb={3}>
+          {stop.pmr_accessible && (
+            <Chip
+              icon={<AccessibleIcon sx={{ fontSize: '16px !important' }} />}
+              label="PMR"
+              size="small"
+              color="success"
+              variant="outlined"
+            />
+          )}
+          {stop.has_elevator && (
+            <Chip
+              icon={<ElevatorIcon sx={{ fontSize: '16px !important' }} />}
+              label="Ascenseur"
+              size="small"
+              variant="outlined"
+            />
+          )}
+          {stop.has_escalator && (
+            <Chip
+              icon={<EscalatorIcon sx={{ fontSize: '16px !important' }} />}
+              label="Escalator"
+              size="small"
+              variant="outlined"
+            />
+          )}
+        </Stack>
 
-      {/* Center map button */}
-      <Box sx={{ mt: 2 }}>
+        {/* Serving Lines */}
+        <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}>
+          Lignes desservies
+        </Typography>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 4 }}>
+          {uniqueLines.map((lineCode) => {
+            const icon = lineIcons?.find(li => li.code_ligne === lineCode);
+            return (
+              <Box
+                key={lineCode}
+                sx={{
+                  transition: 'transform 0.2s',
+                  '&:hover': { transform: 'scale(1.1)' },
+                  cursor: 'pointer',
+                  p: 0.5,
+                  borderRadius: 1,
+                  bgcolor: alpha(theme.palette.background.paper, 0.5),
+                }}
+              >
+                {icon ? (
+                  <img
+                    src={`/icons/${icon.picto_ligne}`}
+                    alt={lineCode}
+                    style={{ width: 42, height: 42 }}
+                  />
+                ) : (
+                  <Chip label={lineCode} sx={{ fontWeight: 800 }} />
+                )}
+              </Box>
+            );
+          })}
+        </Stack>
+
+        {/* Next Passages Timeline */}
+        <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}>
+          Prochains Départs
+        </Typography>
+
+        {isLoadingPassages ? (
+          <Stack alignItems="center" py={4}>
+            <CircularProgress size={32} thickness={4} />
+            <Typography variant="caption" sx={{ mt: 2, color: 'text.secondary' }}>Chargement des horaires...</Typography>
+          </Stack>
+        ) : futurePassages.length > 0 ? (
+          <Stack spacing={2}>
+            <AnimatePresence>
+              {futurePassages.map((passage, index) => {
+                const icon = lineIcons?.find(li => li.code_ligne === passage.published_line_name);
+                return (
+                  <motion.div
+                    key={`${passage.published_line_name}-${index}`}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Card
+                      sx={{
+                        bgcolor: alpha(theme.palette.background.paper, 0.4),
+                        backdropFilter: 'blur(10px)',
+                        border: `1px solid ${theme.palette.divider}`,
+                        borderRadius: 3,
+                        overflow: 'visible',
+                      }}
+                    >
+                      <CardContent sx={{ p: '16px !important', display: 'flex', alignItems: 'center', gap: 2 }}>
+                        {/* Line Icon */}
+                        <Box sx={{ position: 'relative' }}>
+                          {icon ? (
+                            <img
+                              src={`/icons/${icon.picto_ligne}`}
+                              alt={passage.published_line_name}
+                              style={{ width: 42, height: 42 }}
+                            />
+                          ) : (
+                            <Chip label={passage.published_line_name} sx={{ fontWeight: 800 }} />
+                          )}
+                        </Box>
+
+                        {/* Destination & Time */}
+                        <Box sx={{ flexGrow: 1 }}>
+                          <Typography variant="body1" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+                            {passage.line_destination || 'Terminus'}
+                          </Typography>
+                          <Stack direction="row" spacing={1} alignItems="center" mt={0.5}>
+                            <AccessTimeIcon sx={{ fontSize: 14, color: theme.palette.primary.main }} />
+                            <Typography variant="body2" color="primary.main" fontWeight={600}>
+                              {formatDuration(passage.delay || 'PT0S')}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              • {passage.scheduled_arrival_time?.slice(0, 5)}
+                            </Typography>
+                          </Stack>
+                        </Box>
+
+                        {/* Real-time pulse */}
+                        <Box
+                          sx={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: theme.palette.success.main,
+                            boxShadow: `0 0 8px ${theme.palette.success.main}`,
+                            animation: 'pulse 2s infinite',
+                            '@keyframes pulse': {
+                              '0%': { opacity: 1, transform: 'scale(1)' },
+                              '50%': { opacity: 0.5, transform: 'scale(1.5)' },
+                              '100%': { opacity: 1, transform: 'scale(1)' },
+                            },
+                          }}
+                        />
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </Stack>
+        ) : (
+          <Box sx={{ p: 3, textAlign: 'center', bgcolor: alpha(theme.palette.background.paper, 0.3), borderRadius: 3 }}>
+            <DirectionsBusIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
+            <Typography variant="body2" color="text.secondary">Aucun passage détecté prochainement</Typography>
+          </Box>
+        )}
+
         <Button
           fullWidth
           variant="outlined"
           startIcon={<MyLocationIcon />}
           onClick={() => setCenterCoordinates({ lng: stop.longitude, lat: stop.latitude })}
+          sx={{ mt: 4, py: 1.5, borderRadius: 3, borderStyle: 'dashed' }}
         >
           Centrer sur la carte
         </Button>
       </Box>
     </Box>
+  );
+
+  if (isMobile) {
+    return (
+      <SwipeableDrawer
+        anchor="bottom"
+        open={!!stop}
+        onClose={onClose}
+        onOpen={() => { }}
+        disableSwipeToOpen={true}
+        PaperProps={{
+          sx: {
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            bgcolor: alpha(theme.palette.background.default, 0.95),
+            backdropFilter: 'blur(20px)',
+            maxHeight: '85vh',
+          },
+        }}
+      >
+        <Box
+          sx={{
+            width: 40,
+            height: 4,
+            bgcolor: 'grey.600',
+            borderRadius: 2,
+            mx: 'auto',
+            mt: 2,
+            mb: 1,
+            opacity: 0.5,
+          }}
+        />
+        <Content />
+      </SwipeableDrawer>
+    );
+  }
+
+  return (
+    <Fade in={!!stop}>
+      <Card
+        sx={{
+          position: 'absolute',
+          top: 24,
+          right: 24,
+          width: 400,
+          maxHeight: 'calc(100vh - 48px)',
+          overflowY: 'auto',
+          borderRadius: 5, // 20px
+          bgcolor: 'rgba(10, 10, 10, 0.85)', // Darker glass
+          backdropFilter: 'blur(30px)',
+          border: `1px solid ${alpha(theme.palette.common.white, 0.08)}`,
+          boxShadow: '0 24px 48px rgba(0,0,0,0.6)',
+          zIndex: 1300,
+        }}
+      >
+        <Content />
+      </Card>
+    </Fade>
   );
 };
 

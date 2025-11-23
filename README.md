@@ -23,6 +23,23 @@ L'objectif est d'afficher des informations en temps réel sur les lignes de bus,
 ### Panneau d'alerte
 ![Suivi Véhicules](screenshots/vehicle_tracking.png)
 
+## ✨ Fonctionnalités Récentes
+
+### Progressive Web App (PWA)
+- **Installation sur mobile** : Ajoutez l'application à votre écran d'accueil pour une expérience native
+- **Mode hors ligne** : Service Worker pour un chargement rapide et une utilisation offline
+- **Optimisé iOS** : Meta tags spécifiques pour une intégration parfaite sur iPhone/iPad
+
+### Persistance des Données
+- **Mémorisation de la position** : La carte se souvient de votre dernière position et niveau de zoom
+- **Stockage local** : Vos préférences sont sauvegardées automatiquement avec Zustand persist
+
+### Expérience Utilisateur Améliorée
+- **Animation 3D Flyover** : Visualisation cinématique des trajets calculés avec caméra inclinée (pitch 60°)
+- **Carte restreinte** : Vue limitée à la région lyonnaise pour éviter la navigation accidentelle
+- **Modal de trajet réduite** : Interface mobile optimisée avec possibilité de réduire/agrandir la modal de navigation
+- **Centrage automatique** : Positionnement parfait des éléments UI sur tous les écrans
+
 ## Technologies Clés
 
 *   **Frontend:**

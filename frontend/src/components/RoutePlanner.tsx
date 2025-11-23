@@ -2,7 +2,6 @@ import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Box,
-  Drawer,
   IconButton,
   Typography,
   TextField,
@@ -26,6 +25,7 @@ import {
   ToggleButtonGroup,
   ToggleButton,
   Switch,
+  useMediaQuery, // <--- AJOUTÉ
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import SwapVertIcon from '@mui/icons-material/SwapVert';
@@ -169,17 +169,17 @@ const RoutePlanner: React.FC<RoutePlannerProps> = ({ open, onClose }) => {
   const getOptions = (searchQuery: string): Location[] => {
     const stopOptions: Location[] = stops
       ? stops
-          .filter(stop =>
-            stop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            stop.municipality?.toLowerCase().includes(searchQuery.toLowerCase())
-          )
-          .slice(0, 10)
-          .map(stop => ({
-            name: `${stop.name} (${stop.municipality})`,
-            lat: stop.latitude,
-            lng: stop.longitude,
-            type: 'stop' as const,
-          }))
+        .filter(stop =>
+          stop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          stop.municipality?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        .slice(0, 10)
+        .map(stop => ({
+          name: `${stop.name} (${stop.municipality})`,
+          lat: stop.latitude,
+          lng: stop.longitude,
+          type: 'stop' as const,
+        }))
       : [];
 
     return [...stopOptions, ...addressSuggestions];
@@ -356,673 +356,327 @@ const RoutePlanner: React.FC<RoutePlannerProps> = ({ open, onClose }) => {
     }
   };
 
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
   return (
-    <Drawer
-      anchor="right"
-      open={open}
-      onClose={onClose}
-      sx={{
-        '& .MuiDrawer-paper': {
-          width: { xs: '100%', sm: 450 },
-          boxSizing: 'border-box',
-          background: `linear-gradient(135deg, ${alpha(theme.palette.background.default, 0.95)} 0%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`,
-          backdropFilter: 'blur(20px)',
-          borderLeft: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-        },
-      }}
-    >
-      <Box sx={{ p: 3 }}>
+    <AnimatePresence>
+      {open && (
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
+          initial={{ x: -450, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: -450, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: isMobile ? '100%' : '450px',
+            height: '100vh',
+            zIndex: 1200, // Above Sidebar (1100 usually)
+            pointerEvents: 'none', // Container passes clicks
+          }}
         >
-        <Box sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 4,
-          pb: 2,
-          borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.1)}`,
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box sx={{
-              width: 48,
-              height: 48,
-              borderRadius: 2.5,
-              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          <Box
+            sx={{
+              pointerEvents: 'auto',
+              width: isMobile ? '100%' : '400px',
+              height: isMobile ? '100%' : 'calc(100% - 32px)',
+              m: isMobile ? 0 : 2,
+              bgcolor: alpha(theme.palette.background.paper, 0.95),
+              backdropFilter: 'blur(24px)',
+              borderRadius: isMobile ? 0 : 4,
+              border: isMobile ? 'none' : `1px solid ${alpha(theme.palette.common.white, 0.1)}`,
+              boxShadow: '0 24px 48px rgba(0,0,0,0.5)',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.3)}`,
-            }}>
-              <DirectionsIcon sx={{ color: 'white', fontSize: 28 }} />
-            </Box>
-            <Typography variant="h5" sx={{
-              fontWeight: 800,
-              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}>
-              Itinéraire
-            </Typography>
-          </Box>
-          <IconButton
-            onClick={onClose}
-            sx={{
-              transition: 'all 0.3s',
-              '&:hover': {
-                transform: 'rotate(90deg)',
-                bgcolor: alpha(theme.palette.error.main, 0.1),
-              },
+              flexDirection: 'column',
+              overflow: 'hidden',
             }}
           >
-            <CloseIcon />
-          </IconButton>
-        </Box>
-        </motion.div>
-
-        <Stack spacing={2}>
-          {/* From */}
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-              Départ
-            </Typography>
-            <Autocomplete
-              freeSolo
-              options={getOptions(fromSearch)}
-              getOptionLabel={(option) => typeof option === 'string' ? option : option.name}
-              value={from}
-              onChange={(_, newValue) => {
-                if (newValue && typeof newValue !== 'string') {
-                  setFrom(newValue);
-                } else if (newValue === null) {
-                  setFrom(null);
-                }
-              }}
-              inputValue={fromSearch}
-              onInputChange={(_, newValue) => {
-                setFromSearch(newValue);
-                searchAddress(newValue);
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  size="small"
-                  placeholder="Rechercher un arrêt ou une adresse..."
-                  InputProps={{
-                    ...params.InputProps,
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <LocationOnIcon fontSize="small" />
-                      </InputAdornment>
-                    ),
-                    endAdornment: (
-                      <>
-                        {params.InputProps.endAdornment}
-                        <IconButton size="small" onClick={() => handleUseMyLocation(true)}>
-                          <MyLocationIcon fontSize="small" />
-                        </IconButton>
-                      </>
-                    ),
-                  }}
-                />
-              )}
-              renderOption={(props, option) => (
-                <li {...props} key={`from-${option.name}-${option.lat}-${option.lng}`}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {option.type === 'stop' ? '🚏' : '📍'}
-                    <Typography variant="body2">{option.name}</Typography>
+            <Box sx={{ p: { xs: 2, md: 3 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Box sx={{
+                    width: { xs: 32, md: 40 },
+                    height: { xs: 32, md: 40 },
+                    borderRadius: 2,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
+                  }}>
+                    <DirectionsIcon sx={{ color: 'white', fontSize: 20 }} />
                   </Box>
-                </li>
-              )}
-            />
-          </Box>
-
-          {/* Swap button */}
-          <Box sx={{ textAlign: 'center', my: 1 }}>
-            <IconButton
-              onClick={handleSwap}
-              sx={{
-                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
-                '&:hover': {
-                  bgcolor: alpha(theme.palette.primary.main, 0.2),
-                  transform: 'rotate(180deg) scale(1.1)',
-                  boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
-                },
-              }}
-            >
-              <SwapVertIcon sx={{ color: theme.palette.primary.main }} />
-            </IconButton>
-          </Box>
-
-          {/* To */}
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-              Arrivée
-            </Typography>
-            <Autocomplete
-              freeSolo
-              options={getOptions(toSearch)}
-              getOptionLabel={(option) => typeof option === 'string' ? option : option.name}
-              value={to}
-              onChange={(_, newValue) => {
-                if (newValue && typeof newValue !== 'string') {
-                  setTo(newValue);
-                } else if (newValue === null) {
-                  setTo(null);
-                }
-              }}
-              inputValue={toSearch}
-              onInputChange={(_, newValue) => {
-                setToSearch(newValue);
-                searchAddress(newValue);
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  size="small"
-                  placeholder="Rechercher un arrêt ou une adresse..."
-                  InputProps={{
-                    ...params.InputProps,
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <LocationOnIcon fontSize="small" />
-                      </InputAdornment>
-                    ),
-                    endAdornment: (
-                      <>
-                        {params.InputProps.endAdornment}
-                        <IconButton size="small" onClick={() => handleUseMyLocation(false)}>
-                          <MyLocationIcon fontSize="small" />
-                        </IconButton>
-                      </>
-                    ),
-                  }}
-                />
-              )}
-              renderOption={(props, option) => (
-                <li {...props} key={`to-${option.name}-${option.lat}-${option.lng}`}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {option.type === 'stop' ? '🚏' : '📍'}
-                    <Typography variant="body2">{option.name}</Typography>
-                  </Box>
-                </li>
-              )}
-            />
-          </Box>
-
-          {/* Options */}
-          <Accordion
-            sx={{
-              bgcolor: alpha(theme.palette.background.paper, 0.6),
-              backdropFilter: 'blur(10px)',
-              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-              '&:before': { display: 'none' },
-            }}
-          >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <TuneIcon fontSize="small" color="primary" />
-                <Typography variant="subtitle2" fontWeight={600}>
-                  Options de recherche
-                </Typography>
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={2.5}>
-                {/* Transport Modes */}
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 600 }}>
-                    Modes de transport
+                  <Typography variant="h6" sx={{ fontFamily: 'Space Grotesk', fontWeight: 700 }}>
+                    Itinéraire
                   </Typography>
-                  <FormGroup>
-                    <Stack direction="row" flexWrap="wrap" gap={1}>
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={transportModes.metro}
-                            onChange={(e) => setTransportModes({ ...transportModes, metro: e.target.checked })}
-                            icon={<DirectionsSubwayIcon />}
-                            checkedIcon={<DirectionsSubwayIcon />}
-                          />
-                        }
-                        label="Métro"
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={transportModes.tramway}
-                            onChange={(e) => setTransportModes({ ...transportModes, tramway: e.target.checked })}
-                            icon={<TramIcon />}
-                            checkedIcon={<TramIcon />}
-                          />
-                        }
-                        label="Tram"
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={transportModes.bus}
-                            onChange={(e) => setTransportModes({ ...transportModes, bus: e.target.checked })}
-                            icon={<DirectionsBusIcon />}
-                            checkedIcon={<DirectionsBusIcon />}
-                          />
-                        }
-                        label="Bus"
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={transportModes.funicular}
-                            onChange={(e) => setTransportModes({ ...transportModes, funicular: e.target.checked })}
-                          />
-                        }
-                        label="Funiculaire"
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={transportModes.bike}
-                            onChange={(e) => setTransportModes({ ...transportModes, bike: e.target.checked })}
-                            icon={<DirectionsBikeIcon />}
-                            checkedIcon={<DirectionsBikeIcon />}
-                          />
-                        }
-                        label="Vélo"
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={transportModes.car}
-                            onChange={(e) => setTransportModes({ ...transportModes, car: e.target.checked })}
-                          />
-                        }
-                        label="Voiture"
-                      />
-                    </Stack>
-                  </FormGroup>
-                </Box>
-
-                <Divider />
-
-                {/* Date & Time */}
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 600 }}>
-                    <AccessTimeIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
-                    Horaire de trajet
-                  </Typography>
-                  <Stack spacing={1.5}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={useCustomDateTime}
-                          onChange={(e) => setUseCustomDateTime(e.target.checked)}
-                          size="small"
-                        />
-                      }
-                      label="Personnaliser l'heure"
-                    />
-
-                    {useCustomDateTime && (
-                      <>
-                        <ToggleButtonGroup
-                          value={isArrivalTime ? 'arrival' : 'departure'}
-                          exclusive
-                          onChange={(_, newValue) => {
-                            if (newValue !== null) {
-                              setIsArrivalTime(newValue === 'arrival');
-                            }
-                          }}
-                          size="small"
-                          fullWidth
-                        >
-                          <ToggleButton value="departure">Partir à</ToggleButton>
-                          <ToggleButton value="arrival">Arriver à</ToggleButton>
-                        </ToggleButtonGroup>
-
-                        <TextField
-                          type="datetime-local"
-                          value={dateTime}
-                          onChange={(e) => setDateTime(e.target.value)}
-                          size="small"
-                          fullWidth
-                          InputProps={{
-                            sx: {
-                              bgcolor: alpha(theme.palette.background.paper, 0.6),
-                            }
-                          }}
-                        />
-                      </>
-                    )}
-                  </Stack>
-                </Box>
-
-                <Divider />
-
-                {/* Walk Speed */}
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 600 }}>
-                    <DirectionsWalkIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
-                    Vitesse de marche
-                  </Typography>
-                  <ToggleButtonGroup
-                    value={walkSpeed}
-                    exclusive
-                    onChange={(_, newValue) => newValue && setWalkSpeed(newValue)}
-                    size="small"
-                    fullWidth
-                  >
-                    <ToggleButton value="slow">Lent</ToggleButton>
-                    <ToggleButton value="normal">Normal</ToggleButton>
-                    <ToggleButton value="fast">Rapide</ToggleButton>
-                  </ToggleButtonGroup>
-                </Box>
-
-                {/* Bike Options (only show if bike is selected) */}
-                {transportModes.bike && (
-                  <>
-                    <Divider />
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 600 }}>
-                        <DirectionsBikeIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
-                        Options vélo
-                      </Typography>
-                      <Stack spacing={1.5}>
-                        <ToggleButtonGroup
-                          value={bikeType}
-                          exclusive
-                          onChange={(_, newValue) => newValue && setBikeType(newValue)}
-                          size="small"
-                          fullWidth
-                        >
-                          <ToggleButton value="bike">Mon vélo</ToggleButton>
-                          <ToggleButton value="bss">VéloV</ToggleButton>
-                        </ToggleButtonGroup>
-                        <ToggleButtonGroup
-                          value={bikeSpeed}
-                          exclusive
-                          onChange={(_, newValue) => newValue && setBikeSpeed(newValue)}
-                          size="small"
-                          fullWidth
-                        >
-                          <ToggleButton value="slow">Lent</ToggleButton>
-                          <ToggleButton value="normal">Normal</ToggleButton>
-                          <ToggleButton value="fast">Rapide</ToggleButton>
-                        </ToggleButtonGroup>
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={isElectricBike}
-                              onChange={(e) => setIsElectricBike(e.target.checked)}
-                              size="small"
-                            />
-                          }
-                          label="Vélo électrique"
-                        />
-                      </Stack>
-                    </Box>
-                  </>
-                )}
-
-                <Divider />
-
-                {/* Accessibility & Preferences */}
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 600 }}>
-                    Préférences
-                  </Typography>
-                  <Stack spacing={0.5}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={isPmr}
-                          onChange={(e) => setIsPmr(e.target.checked)}
-                          size="small"
-                        />
-                      }
-                      label={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <AccessibleIcon fontSize="small" />
-                          <span>Accessibilité PMR</span>
-                        </Box>
-                      }
-                    />
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={useRealtime}
-                          onChange={(e) => setUseRealtime(e.target.checked)}
-                          size="small"
-                        />
-                      }
-                      label="Utiliser les horaires en temps réel"
-                    />
-                  </Stack>
-                </Box>
+                </Stack>
+                <IconButton onClick={onClose} sx={{ bgcolor: alpha(theme.palette.action.hover, 0.1) }}>
+                  <CloseIcon />
+                </IconButton>
               </Stack>
-            </AccordionDetails>
-          </Accordion>
-
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-          <Button
-            variant="contained"
-            fullWidth
-            size="large"
-            onClick={handleCalculate}
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : <DirectionsIcon />}
-            sx={{
-              py: 1.75,
-              borderRadius: 3,
-              fontSize: '1rem',
-              fontWeight: 700,
-              textTransform: 'none',
-              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-              boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.4)}`,
-              transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
-              '&:hover': {
-                background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`,
-                boxShadow: `0 12px 32px ${alpha(theme.palette.primary.main, 0.5)}`,
-              },
-              '&:disabled': {
-                background: theme.palette.action.disabledBackground,
-                boxShadow: 'none',
-              },
-            }}
-          >
-            {loading ? 'Calcul en cours...' : 'Calculer l\'itinéraire'}
-          </Button>
-          </motion.div>
-
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3 }}
-            >
-            <Box sx={{
-              p: 2,
-              borderRadius: 2,
-              bgcolor: alpha(theme.palette.error.main, 0.1),
-              border: `2px solid ${alpha(theme.palette.error.main, 0.3)}`,
-              textAlign: 'center',
-            }}>
-              <Typography variant="body2" color="error" sx={{ fontWeight: 600 }}>
-                ⚠️ {error}
-              </Typography>
             </Box>
-            </motion.div>
-          )}
-        </Stack>
 
-        <Divider sx={{
-          my: 3,
-          borderColor: alpha(theme.palette.divider, 0.1),
-          '&::before, &::after': {
-            borderColor: alpha(theme.palette.divider, 0.1),
-          },
-        }} />
+            <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
+              <Stack spacing={2}>
+                {/* Inputs */}
+                <Box sx={{ position: 'relative' }}>
+                  <Box sx={{
+                    position: 'absolute',
+                    left: 14,
+                    top: 18,
+                    bottom: 18,
+                    width: 2,
+                    background: `linear-gradient(to bottom, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    zIndex: 0
+                  }} />
 
-        {/* Results */}
-        <Box sx={{ maxHeight: 'calc(100vh - 450px)', overflowY: 'auto', pr: 1 }}>
-          {journeys.length > 0 ? (
-            <Stack spacing={2}>
-              <AnimatePresence>
-              {journeys.map((journey, idx) => {
-                const isSelected = selectedJourney?.id === journey.id;
-                return (
-                <motion.div
-                  key={journey.id || idx}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ delay: idx * 0.1, duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
-                >
-                <Card
-                  onClick={() => setSelectedJourney(journey)}
-                  sx={{
-                    border: `2px solid ${isSelected ? theme.palette.primary.main : alpha(theme.palette.divider, 0.2)}`,
-                    cursor: 'pointer',
-                    transition: 'all 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
-                    bgcolor: isSelected
-                      ? alpha(theme.palette.primary.main, 0.1)
-                      : alpha(theme.palette.background.paper, 0.6),
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: isSelected
-                      ? `0 12px 32px ${alpha(theme.palette.primary.main, 0.2)}`
-                      : `0 4px 12px ${alpha(theme.palette.common.black, 0.05)}`,
-                    '&:hover': {
-                      borderColor: theme.palette.primary.main,
-                      transform: 'translateY(-4px) scale(1.02)',
-                      boxShadow: `0 16px 40px ${alpha(theme.palette.primary.main, 0.15)}`,
-                    },
-                  }}
-                >
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-start', flexWrap: 'wrap', gap: 1.5, mb: 2.5 }}>
-                      <Chip
-                        label={`Départ: ${formatTime(journey.departure)}`}
-                        size="medium"
-                        sx={{
-                          fontWeight: 700,
-                          bgcolor: alpha(theme.palette.success.main, 0.15),
-                          color: theme.palette.success.dark,
-                          border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
-                          px: 1.5,
-                        }}
-                      />
-                      <Chip
-                        label={`Arrivée: ${formatTime(journey.arrival)}`}
-                        size="medium"
-                        sx={{
-                          fontWeight: 700,
-                          bgcolor: alpha(theme.palette.warning.main, 0.15),
-                          color: theme.palette.warning.dark,
-                          border: `2px solid ${alpha(theme.palette.warning.main, 0.3)}`,
-                          px: 1.5,
-                        }}
-                      />
-                      <Chip
-                        icon={<AccessTimeIcon sx={{ fontSize: 18 }} />}
-                        label={formatDuration(journey.arrival, journey.departure)}
-                        size="medium"
-                        sx={{
-                          fontWeight: 700,
-                          bgcolor: alpha(theme.palette.primary.main, 0.15),
-                          color: theme.palette.primary.dark,
-                          border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-                          px: 1.5,
-                          '& .MuiChip-icon': {
-                            color: theme.palette.primary.main,
-                          },
-                        }}
-                      />
-                      <Chip
-                        icon={<TransferWithinAStationIcon sx={{ fontSize: 18 }} />}
-                        label={`${countTransfers(journey.sections)} corresp.`}
-                        size="medium"
-                        sx={{
-                          fontWeight: 700,
-                          bgcolor: alpha(theme.palette.info.main, 0.15),
-                          color: theme.palette.info.dark,
-                          border: `2px solid ${alpha(theme.palette.info.main, 0.3)}`,
-                          px: 1.5,
-                          '& .MuiChip-icon': {
-                            color: theme.palette.info.main,
-                          },
-                        }}
-                      />
-                      {journey.co2 !== undefined && journey.co2_car !== undefined && (
-                        <Chip
-                          label={`🌱 ${journey.co2.toFixed(2)} kg (vs ${journey.co2_car.toFixed(2)} kg)`}
-                          size="medium"
-                          sx={{
-                            fontWeight: 700,
-                            bgcolor: alpha(theme.palette.success.main, 0.15),
-                            color: theme.palette.success.dark,
-                            border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
-                            px: 1.5,
+                  <Stack spacing={2}>
+                    <Autocomplete
+                      freeSolo
+                      options={getOptions(fromSearch)}
+                      getOptionLabel={(option) => typeof option === 'string' ? option : option.name}
+                      value={from}
+                      onChange={(_, newValue) => {
+                        if (newValue && typeof newValue !== 'string') setFrom(newValue);
+                        else if (newValue === null) setFrom(null);
+                      }}
+                      inputValue={fromSearch}
+                      onInputChange={(_, newValue) => {
+                        setFromSearch(newValue);
+                        searchAddress(newValue);
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder="Lieu de départ"
+                          InputProps={{
+                            ...params.InputProps,
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: theme.palette.primary.main, zIndex: 1, ml: 0.5 }} />
+                              </InputAdornment>
+                            ),
+                            endAdornment: (
+                              <>
+                                {params.InputProps.endAdornment}
+                                <IconButton size="small" onClick={() => handleUseMyLocation(true)}>
+                                  <MyLocationIcon fontSize="small" />
+                                </IconButton>
+                              </>
+                            ),
+                            sx: { borderRadius: 3, bgcolor: alpha(theme.palette.background.default, 0.5) }
                           }}
                         />
                       )}
-                    </Box>
-
-                    <Stack spacing={1}>
-                      {journey.sections.map((section, sIdx) => (
-                        <Box key={sIdx} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-                          <Typography sx={{ fontSize: '1.2rem' }}>
-                            {getModeIcon(section.type)}
-                          </Typography>
-                          <Box sx={{ flex: 1 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                              {section.type === 'public-transport' && section.line ? (
-                                <Chip
-                                  label={section.line.code}
-                                  size="small"
-                                  sx={{
-                                    background: `linear-gradient(135deg, #${section.line.color} 0%, ${alpha(`#${section.line.color}`, 0.7)} 100%)`,
-                                    color: 'white',
-                                    fontWeight: 800,
-                                    fontSize: '0.75rem',
-                                    height: 24,
-                                    px: 1,
-                                    boxShadow: `0 2px 8px ${alpha(`#${section.line.color}`, 0.4)}`,
-                                    border: '2px solid rgba(255, 255, 255, 0.2)',
-                                  }}
-                                />
-                              ) : null}
-                              <span>{section.from.name} → {section.to.name}</span>
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {formatDuration(section.arrival, section.departure)}
-                              {section.headsign && ` • ${section.headsign}`}
-                            </Typography>
+                      renderOption={(props, option) => (
+                        <li {...props} key={`from-${option.name}-${option.lat}-${option.lng}`}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {option.type === 'stop' ? '🚏' : '📍'}
+                            <Typography variant="body2">{option.name}</Typography>
                           </Box>
-                        </Box>
-                      ))}
+                        </li>
+                      )}
+                    />
+
+                    <Autocomplete
+                      freeSolo
+                      options={getOptions(toSearch)}
+                      getOptionLabel={(option) => typeof option === 'string' ? option : option.name}
+                      value={to}
+                      onChange={(_, newValue) => {
+                        if (newValue && typeof newValue !== 'string') setTo(newValue);
+                        else if (newValue === null) setTo(null);
+                      }}
+                      inputValue={toSearch}
+                      onInputChange={(_, newValue) => {
+                        setToSearch(newValue);
+                        searchAddress(newValue);
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder="Destination"
+                          InputProps={{
+                            ...params.InputProps,
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: theme.palette.secondary.main, zIndex: 1, ml: 0.5 }} />
+                              </InputAdornment>
+                            ),
+                            endAdornment: (
+                              <>
+                                {params.InputProps.endAdornment}
+                                <IconButton size="small" onClick={() => handleUseMyLocation(false)}>
+                                  <MyLocationIcon fontSize="small" />
+                                </IconButton>
+                              </>
+                            ),
+                            sx: { borderRadius: 3, bgcolor: alpha(theme.palette.background.default, 0.5) }
+                          }}
+                        />
+                      )}
+                      renderOption={(props, option) => (
+                        <li {...props} key={`to-${option.name}-${option.lat}-${option.lng}`}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {option.type === 'stop' ? '🚏' : '📍'}
+                            <Typography variant="body2">{option.name}</Typography>
+                          </Box>
+                        </li>
+                      )}
+                    />
+                  </Stack>
+
+                  <IconButton
+                    onClick={handleSwap}
+                    size="small"
+                    sx={{
+                      position: 'absolute',
+                      right: -12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      bgcolor: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.divider}`,
+                      boxShadow: 1,
+                      zIndex: 2,
+                      '&:hover': { bgcolor: theme.palette.action.hover }
+                    }}
+                  >
+                    <SwapVertIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+
+                {/* Options Accordion (Simplified) */}
+                <Accordion
+                  elevation={0}
+                  sx={{
+                    bgcolor: 'transparent',
+                    '&:before': { display: 'none' },
+                    border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                    borderRadius: '12px !important',
+                    overflow: 'hidden'
+                  }}
+                >
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.background.default, 0.3) }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <TuneIcon fontSize="small" color="action" />
+                      <Typography variant="body2" fontWeight={600}>Options de trajet</Typography>
+                    </Box>
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ bgcolor: alpha(theme.palette.background.default, 0.3) }}>
+                    <Stack spacing={2}>
+                      <Box>
+                        <Typography variant="caption" fontWeight={700} color="text.secondary" mb={1} display="block">MODES</Typography>
+                        <Stack direction="row" flexWrap="wrap" gap={1}>
+                          {[
+                            { key: 'metro', icon: <DirectionsSubwayIcon fontSize="small" />, label: 'Métro' },
+                            { key: 'tramway', icon: <TramIcon fontSize="small" />, label: 'Tram' },
+                            { key: 'bus', icon: <DirectionsBusIcon fontSize="small" />, label: 'Bus' },
+                            { key: 'bike', icon: <DirectionsBikeIcon fontSize="small" />, label: 'Vélo' },
+                          ].map((mode) => (
+                            <Chip
+                              key={mode.key}
+                              icon={mode.icon}
+                              label={mode.label}
+                              onClick={() => setTransportModes(prev => ({ ...prev, [mode.key]: !prev[mode.key as keyof typeof transportModes] }))}
+                              color={transportModes[mode.key as keyof typeof transportModes] ? 'primary' : 'default'}
+                              variant={transportModes[mode.key as keyof typeof transportModes] ? 'filled' : 'outlined'}
+                              size="small"
+                            />
+                          ))}
+                        </Stack>
+                      </Box>
+                      <Divider />
+                      <FormControlLabel
+                        control={<Switch checked={isPmr} onChange={(e) => setIsPmr(e.target.checked)} size="small" />}
+                        label={<Typography variant="body2">Accès PMR</Typography>}
+                      />
                     </Stack>
-                  </CardContent>
-                </Card>
-                </motion.div>
-                );
-              })}
-              </AnimatePresence>
-            </Stack>
-          ) : !loading ? (
-            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 4 }}>
-              Entrez vos coordonnées de départ et d'arrivée pour calculer un itinéraire
-            </Typography>
-          ) : null}
-        </Box>
-      </Box>
-    </Drawer>
+                  </AccordionDetails>
+                </Accordion>
+
+                <Button
+                  variant="contained"
+                  fullWidth
+                  size="large"
+                  onClick={handleCalculate}
+                  disabled={loading}
+                  sx={{
+                    py: 1.5,
+                    borderRadius: 3,
+                    fontWeight: 700,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    boxShadow: `0 8px 20px ${alpha(theme.palette.primary.main, 0.3)}`,
+                  }}
+                >
+                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Calculer'}
+                </Button>
+
+                {error && (
+                  <Typography color="error" variant="body2" align="center" sx={{ bgcolor: alpha(theme.palette.error.main, 0.1), p: 1, borderRadius: 2 }}>
+                    {error}
+                  </Typography>
+                )}
+              </Stack>
+
+              {/* Results List */}
+              {journeys.length > 0 && (
+                <Box mt={4}>
+                  <Typography variant="overline" color="text.secondary" fontWeight={700}>RÉSULTATS</Typography>
+                  <Stack spacing={2} mt={1}>
+                    {journeys.map((journey, idx) => (
+                      <Card
+                        key={idx}
+                        onClick={() => {
+                          setSelectedJourney(journey);
+                          onClose(); // Close the planner to show the map/navigator
+                        }}
+                        sx={{
+                          cursor: 'pointer',
+                          bgcolor: selectedJourney?.id === journey.id ? alpha(theme.palette.primary.main, 0.1) : alpha(theme.palette.background.paper, 0.5),
+                          border: `1px solid ${selectedJourney?.id === journey.id ? theme.palette.primary.main : theme.palette.divider}`,
+                          transition: 'all 0.2s',
+                          '&:hover': { transform: 'translateX(4px)', borderColor: theme.palette.primary.main }
+                        }}
+                      >
+                        <CardContent sx={{ p: 2 }}>
+                          <Stack direction="row" justifyContent="space-between" mb={1}>
+                            <Typography variant="h6" fontWeight={700}>{formatDuration(journey.arrival, journey.departure)}</Typography>
+                            <Typography variant="body2" color="text.secondary">{formatTime(journey.departure)} - {formatTime(journey.arrival)}</Typography>
+                          </Stack>
+                          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ rowGap: 1 }}>
+                            {journey.sections.map((section, sIdx) => (
+                              <React.Fragment key={sIdx}>
+                                {section.type === 'public-transport' ? (
+                                  <Chip
+                                    label={section.line?.code}
+                                    size="small"
+                                    sx={{
+                                      height: 20,
+                                      fontSize: '0.7rem',
+                                      fontWeight: 800,
+                                      bgcolor: section.line?.color ? `#${section.line.color}` : theme.palette.grey[700],
+                                      color: 'white'
+                                    }}
+                                  />
+                                ) : section.type === 'walk' ? (
+                                  <DirectionsWalkIcon fontSize="small" sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                ) : null}
+                                {sIdx < journey.sections.length - 1 && <Typography variant="caption" color="text.disabled">›</Typography>}
+                              </React.Fragment>
+                            ))}
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 

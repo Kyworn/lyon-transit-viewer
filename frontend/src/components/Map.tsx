@@ -12,6 +12,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import StopDetailsModal from './StopDetailsModal';
 import { Box, CircularProgress, Alert } from '@mui/material';
 import { createVehicleMarker, loadSVGMarker } from '../utils/createVehicleMarker';
+import { createStopMarker, loadStopMarker } from '../utils/createStopMarker';
 
 if (process.env.REACT_APP_MAPBOX_TOKEN) {
   mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
@@ -21,9 +22,16 @@ if (process.env.REACT_APP_MAPBOX_TOKEN) {
 
 function MapComponent() {
   const map = useRef<MapboxMap | null>(null);
-  const [lng, setLng] = useState(4.8357);
-  const [lat, setLat] = useState(45.7640);
-  const [zoom, setZoom] = useState(11);
+
+  const zoom = useSelectionStore((state) => state.zoom);
+  const setZoom = useSelectionStore((state) => state.setZoom);
+  const centerCoordinates = useSelectionStore((state) => state.centerCoordinates);
+  const setCenterCoordinates = useSelectionStore((state) => state.setCenterCoordinates);
+
+  // Local state for immediate updates, synced with store on mount
+  const [lng, setLng] = useState(centerCoordinates?.lng || 4.8357);
+  const [lat, setLat] = useState(centerCoordinates?.lat || 45.7640);
+
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [stopIconsLoaded, setStopIconsLoaded] = useState(false);
   const [modalStop, setModalStop] = useState<Stop | null>(null);
@@ -34,8 +42,7 @@ function MapComponent() {
   const selectedLine = useSelectionStore((state) => state.selectedLine);
   const selectedJourney = useSelectionStore((state) => state.selectedJourney);
   const currentJourneyStep = useSelectionStore((state) => state.currentJourneyStep);
-  const centerCoordinates = useSelectionStore((state) => state.centerCoordinates);
-  const setCenterCoordinates = useSelectionStore((state) => state.setCenterCoordinates);
+  const selectedItem = useSelectionStore((state) => state.selectedItem);
 
   const { data: stops, isLoading: isLoadingStops, error: errorStops } = useStops(true);
   const { data: lines, isLoading: isLoadingLines, error: errorLines } = useLines();
@@ -48,27 +55,53 @@ function MapComponent() {
     refetchVehicles();
   }, [selectedLine, refetchVehicles]);
 
-  // Center map when centerCoordinates changes
+  // Center map when centerCoordinates changes (programmatically)
   useEffect(() => {
     if (centerCoordinates && map.current) {
-      map.current.flyTo({
-        center: [centerCoordinates.lng, centerCoordinates.lat],
-        zoom: 16,
-        duration: 1000
-      });
-      // Reset after centering
-      setCenterCoordinates(null);
+      // Only fly to if distance is significant to avoid fighting with user interaction
+      const currentCenter = map.current.getCenter();
+      const dist = Math.sqrt(Math.pow(currentCenter.lng - centerCoordinates.lng, 2) + Math.pow(currentCenter.lat - centerCoordinates.lat, 2));
+
+      if (dist > 0.0001) {
+        map.current.flyTo({
+          center: [centerCoordinates.lng, centerCoordinates.lat],
+          zoom: 16,
+          duration: 1000
+        });
+      }
     }
-  }, [centerCoordinates, setCenterCoordinates]);
+  }, [centerCoordinates]);
 
   const mapContainerRef = useCallback((node: HTMLDivElement) => {
     if (node !== null && !map.current) {
       try {
         map.current = new mapboxgl.Map({
           container: node,
-          style: 'mapbox://styles/mapbox/dark-v10',
+          style: 'mapbox://styles/mapbox/dark-v11',
           center: [lng, lat],
-          zoom: zoom
+          zoom: zoom,
+          pitch: 45,
+          bearing: -17.6,
+          antialias: true,
+          // Restrict to Lyon region
+          maxBounds: [
+            [4.35, 45.40], // Southwest coordinates
+            [5.25, 46.10]  // Northeast coordinates
+          ],
+          minZoom: 10 // Prevent zooming out too far
+        });
+
+        // Sync map movement to store
+        map.current.on('moveend', () => {
+          if (!map.current) return;
+          const center = map.current.getCenter();
+          const newZoom = map.current.getZoom();
+
+          // We update the store, but we don't want to trigger the useEffect above that flies to the new center
+          // So we might need a way to distinguish user move vs programmatic move.
+          // For now, simple set is fine, the useEffect check for distance handles small jitters.
+          setCenterCoordinates({ lng: center.lng, lat: center.lat });
+          setZoom(newZoom);
         });
 
         map.current.on('styleimagemissing', (e) => {
@@ -77,7 +110,7 @@ function MapComponent() {
           const width = 32, height = 32, data = new Uint8Array(width * height * 4);
           let r = 255, g = 0, b = 0;
           if (id.includes('yellow')) { r = 255; g = 255; b = 0; }
-          for (let i = 0; i < data.length; i += 4) { data[i] = r; data[i+1] = g; data[i+2] = b; data[i+3] = 255; }
+          for (let i = 0; i < data.length; i += 4) { data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255; }
           if (map.current) map.current.addImage(id, { width, height, data }, { sdf: false });
         });
 
@@ -88,23 +121,54 @@ function MapComponent() {
 
           const mapInstance = map.current;
 
-          // Load all stop icons in parallel
-          const iconPromises = [
-            { name: 'bus-stop', path: '/icons/mode_Bus.png' },
-            { name: 'tram-stop', path: '/icons/mode_Tramway.png' },
-            { name: 'metro-stop', path: '/icons/mode_Metro.png' },
-            { name: 'funi-stop', path: '/icons/mode_Funiculaire.png' }
-          ].map(icon => {
-            return new Promise<void>((resolve, reject) => {
-              mapInstance.loadImage(icon.path, (error, image) => {
-                if (error) {
-                  console.error(`Failed to load ${icon.name}:`, error);
-                  reject(error);
-                } else if (image && mapInstance) {
-                  mapInstance.addImage(icon.name, image);
-                  resolve();
-                }
-              });
+          // Add 3D buildings
+          const layers = mapInstance.getStyle().layers;
+          const labelLayerId = layers?.find(
+            (layer) => layer.type === 'symbol' && layer.layout?.['text-field']
+          )?.id;
+
+          mapInstance.addLayer(
+            {
+              'id': 'add-3d-buildings',
+              'source': 'composite',
+              'source-layer': 'building',
+              'filter': ['==', 'extrude', 'true'],
+              'type': 'fill-extrusion',
+              'minzoom': 15,
+              'paint': {
+                'fill-extrusion-color': '#222', // Darker buildings
+                'fill-extrusion-height': [
+                  'interpolate',
+                  ['linear'],
+                  ['zoom'],
+                  15,
+                  0,
+                  15.05,
+                  ['get', 'height']
+                ],
+                'fill-extrusion-base': [
+                  'interpolate',
+                  ['linear'],
+                  ['zoom'],
+                  15,
+                  0,
+                  15.05,
+                  ['get', 'min_height']
+                ],
+                'fill-extrusion-opacity': 0.8
+              }
+            },
+            labelLayerId
+          );
+
+          // --- PROJECT NEON: LOAD CUSTOM STOP MARKERS ---
+          const stopTypes = ['bus', 'tram', 'metro', 'funicular'];
+          const iconPromises = stopTypes.map(type => {
+            const markerSvg = createStopMarker(type);
+            return loadStopMarker(markerSvg).then((image: HTMLImageElement) => {
+              if (mapInstance) {
+                mapInstance.addImage(`${type}-stop`, image);
+              }
             });
           });
 
@@ -114,15 +178,45 @@ function MapComponent() {
               setStopIconsLoaded(true);
             })
             .catch(error => console.error('Error loading stop icons:', error));
-        });
 
-        map.current.on('move', () => {
-          if (map.current) {
-            setLng(Number(map.current.getCenter().lng.toFixed(4)));
-            setLat(Number(map.current.getCenter().lat.toFixed(4)));
-            setZoom(Number(map.current.getZoom().toFixed(2)));
+          // --- PROJECT NEON: CLEANUP MAP ---
+          // Hide standard labels to make transit lines pop
+          const layersToHide = [
+            'road-label',
+            'road-number-shield',
+            'poi-label',
+            'transit-label', // We render our own stops
+            'airport-label',
+            'place-neighborhood',
+            'place-hamlet',
+            'place-village',
+            'place-town',
+            'place-city', // Maybe keep city? No, user wants minimal
+            'place-suburb',
+            'waterway-label',
+            'natural-point-label',
+            'natural-line-label',
+            'admin-0-boundary-bg',
+            'admin-1-boundary-bg'
+          ];
+
+          layersToHide.forEach(layer => {
+            if (mapInstance.getLayer(layer)) {
+              mapInstance.setLayoutProperty(layer, 'visibility', 'none');
+            }
+          });
+
+          // Darken water and land for OLED feel
+          if (mapInstance.getLayer('water')) {
+            mapInstance.setPaintProperty('water', 'fill-color', '#000000'); // Pure black water
+          }
+          if (mapInstance.getLayer('background')) {
+            mapInstance.setPaintProperty('background', 'background-color', '#050505'); // Near black land
           }
         });
+
+        // Event listener removed to prevent performance issues (re-renders on every move)
+        // The map handles its own internal state.
 
       } catch (error) {
         console.error('Error initializing Mapbox map:', error);
@@ -147,28 +241,28 @@ function MapComponent() {
 
     const stopsToDisplay = selectedLine && stops
       ? stops.filter((stop: Stop) => {
-          if (!stop.service_info || stop.service_info.trim() === '') return false;
-          const services = stop.service_info.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        if (!stop.service_info || stop.service_info.trim() === '') return false;
+        const services = stop.service_info.split(',').map(s => s.trim()).filter(s => s.length > 0);
 
-          if (selectedLine.direction === 'Aller' || selectedLine.direction === 'Retour') {
-            const directionCode = selectedLine.direction === 'Aller' ? 'A' : 'R';
-            return services.some(service => {
-              const parts = service.split(':');
-              if (parts.length !== 2) return false; // Must have exactly lineCode:direction format
-              const [lineCode, direction] = parts.map(p => p.trim());
-              if (!lineCode || !direction) return false; // Both must be non-empty
-              return lineCode === selectedLine.line_sort_code && direction === directionCode;
-            });
-          } else {
-            return services.some(service => {
-              const parts = service.split(':');
-              if (parts.length < 1) return false;
-              const lineCode = parts[0].trim();
-              if (!lineCode) return false; // Must be non-empty
-              return lineCode === selectedLine.line_sort_code;
-            });
-          }
-        })
+        if (selectedLine.direction === 'Aller' || selectedLine.direction === 'Retour') {
+          const directionCode = selectedLine.direction === 'Aller' ? 'A' : 'R';
+          return services.some(service => {
+            const parts = service.split(':');
+            if (parts.length !== 2) return false; // Must have exactly lineCode:direction format
+            const [lineCode, direction] = parts.map(p => p.trim());
+            if (!lineCode || !direction) return false; // Both must be non-empty
+            return lineCode === selectedLine.line_sort_code && direction === directionCode;
+          });
+        } else {
+          return services.some(service => {
+            const parts = service.split(':');
+            if (parts.length < 1) return false;
+            const lineCode = parts[0].trim();
+            if (!lineCode) return false; // Must be non-empty
+            return lineCode === selectedLine.line_sort_code;
+          });
+        }
+      })
       : []; // No stops on initial load
 
     const stopsGeoJSON: GeoJSON.FeatureCollection = {
@@ -212,7 +306,7 @@ function MapComponent() {
               'funicular', 'funi-stop',
               'bus-stop' // fallback
             ],
-            'icon-size': 0.5,
+            'icon-size': 0.75, // Render at 48px (64px * 0.75)
             'icon-allow-overlap': true
           }
         }, beforeLayer);
@@ -284,8 +378,45 @@ function MapComponent() {
           if (mapInstance.getLayer('vehicles-layer')) {
             mapInstance.setLayoutProperty('vehicles-layer', 'icon-image', vehicleIconId);
           }
+
+          // Ensure highlight layer exists
+          if (!mapInstance.getLayer('selected-vehicle-highlight')) {
+            mapInstance.addLayer({
+              id: 'selected-vehicle-highlight',
+              type: 'circle',
+              source: 'vehicles-source',
+              filter: ['==', ['get', 'id'], ''], // Initial empty filter
+              paint: {
+                'circle-radius': 30,
+                'circle-color': ['get', 'color'],
+                'circle-opacity': 0.2,
+                'circle-blur': 0.4,
+                'circle-stroke-width': 1,
+                'circle-stroke-color': '#ffffff',
+                'circle-stroke-opacity': 0.5
+              }
+            }, 'vehicles-layer');
+          }
         } else {
           mapInstance.addSource('vehicles-source', { type: 'geojson', data: vehiclesGeoJSON });
+
+          // Add highlight layer first (so it's behind)
+          mapInstance.addLayer({
+            id: 'selected-vehicle-highlight',
+            type: 'circle',
+            source: 'vehicles-source',
+            filter: ['==', ['get', 'id'], ''], // Initial empty filter
+            paint: {
+              'circle-radius': 30,
+              'circle-color': ['get', 'color'], // Use vehicle line color
+              'circle-opacity': 0.2,
+              'circle-blur': 0.4,
+              'circle-stroke-width': 1,
+              'circle-stroke-color': '#ffffff',
+              'circle-stroke-opacity': 0.5
+            }
+          });
+
           mapInstance.addLayer({
             id: 'vehicles-layer',
             type: 'symbol',
@@ -303,6 +434,13 @@ function MapComponent() {
               setSelectedItem(e.features[0].properties);
             }
           });
+        }
+
+        // Update highlight filter based on selected item
+        if (mapInstance.getLayer('selected-vehicle-highlight')) {
+          // We need to check if the selected item is a vehicle and matches
+          // But selectedItem is from store, so we can't easily access it here if it changes
+          // However, we can use a separate useEffect to update the filter
         }
       };
 
@@ -360,17 +498,82 @@ function MapComponent() {
       ? [] // Hide all lines when viewing an itinerary
       : selectedLine
         ? lines.filter((line: Line) => line.id === selectedLine.id)
-        : lines.filter((line: Line) => ['metro', 'funicular', 'tram'].includes(line.category));
+        : lines.filter((line: Line) => ['metro', 'funicular', 'tram'].includes(line.category)); // Show ONLY heavy rail by default to prevent lag
 
     const linesGeoJSON: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
       features: linesToDisplay.map((line: Line) => {
         let geometry = null;
         try { geometry = line.trace_code ? JSON.parse(line.trace_code) : null; } catch (e) { console.error('Error parsing geometry for line:', line.line_code, e); }
-        return { type: 'Feature', properties: { ...line }, geometry: geometry as Geometry };
+
+        // Determine weight based on category
+        let weight = 1;
+        if (line.category === 'metro') weight = 4;
+        else if (line.category === 'tram') weight = 3;
+        else if (line.category === 'funicular') weight = 3;
+        else if (line.category.includes('bus')) weight = 1.5; // Major bus lines
+
+        return {
+          type: 'Feature',
+          properties: {
+            ...line,
+            weight,
+            // Ensure color is valid, fallback to white if missing to make it obvious
+            displayColor: line.color ? (line.color.startsWith('#') || line.color.startsWith('rgb') ? line.color : `#${line.color}`) : '#ffffff'
+          },
+          geometry: geometry as Geometry
+        };
       })
     };
     source.setData(linesGeoJSON);
+
+    // Update or Add Layers with Neon Effect
+    if (!mapInstance.getLayer('lines-glow-layer')) {
+      const beforeLayer = mapInstance.getLayer('stops-layer') ? 'stops-layer' : undefined;
+
+      // 1. Glow Layer (Thicker, Blurred, Lower Opacity)
+      mapInstance.addLayer({
+        id: 'lines-glow-layer',
+        type: 'line',
+        source: 'lines-source',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+          'line-sort-key': ['get', 'weight'] // Draw heavier lines on top
+        },
+        paint: {
+          'line-color': ['get', 'displayColor'],
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            10, ['*', ['get', 'weight'], 2],
+            15, ['*', ['get', 'weight'], 6]
+          ],
+          'line-opacity': 0.4,
+          'line-blur': 3
+        }
+      }, beforeLayer);
+
+      // 2. Core Layer (Thinner, Sharp, High Opacity)
+      mapInstance.addLayer({
+        id: 'lines-core-layer',
+        type: 'line',
+        source: 'lines-source',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+          'line-sort-key': ['get', 'weight']
+        },
+        paint: {
+          'line-color': ['get', 'displayColor'],
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            10, ['*', ['get', 'weight'], 1],
+            15, ['*', ['get', 'weight'], 3]
+          ],
+          'line-opacity': 1
+        }
+      }, beforeLayer);
+    }
   }, [lines, selectedLine, selectedJourney, isMapLoaded]);
 
   // Add pricing zones layer
@@ -629,8 +832,13 @@ function MapComponent() {
     } else {
       (mapInstance.getSource('journey-steps-source') as mapboxgl.GeoJSONSource).setData(stepsGeoJSON);
     }
+  }, [selectedJourney, currentJourneyStep, isMapLoaded]);
 
-    // Zoom to current step or entire journey
+  // Zoom to current step or entire journey with 3D Flyover
+  useEffect(() => {
+    if (!isMapLoaded || !map.current || !selectedJourney) return;
+    const mapInstance = map.current;
+
     if (currentJourneyStep !== null && selectedJourney.sections[currentJourneyStep]?.geojson?.coordinates) {
       const currentSectionCoords = selectedJourney.sections[currentJourneyStep].geojson.coordinates;
       const bounds = new mapboxgl.LngLatBounds();
@@ -638,19 +846,37 @@ function MapComponent() {
         bounds.extend(coord as [number, number]);
       });
       mapInstance.fitBounds(bounds, { padding: 100, duration: 1000 });
-    } else if (selectedJourney.sections.length > 0) {
-      // Zoom to entire journey
-      const bounds = new mapboxgl.LngLatBounds();
-      selectedJourney.sections.forEach((section: any) => {
-        if (section.geojson?.coordinates) {
-          section.geojson.coordinates.forEach((coord: number[]) => {
-            bounds.extend(coord as [number, number]);
-          });
-        }
-      });
-      mapInstance.fitBounds(bounds, { padding: 50, duration: 1000 });
+    } else {
+      // Flyover for entire journey
+      const allCoords = selectedJourney.sections.flatMap((s: any) => s.geojson?.coordinates || []);
+      if (allCoords.length > 0) {
+        const bounds = new mapboxgl.LngLatBounds();
+        allCoords.forEach((coord: any) => bounds.extend(coord as [number, number]));
+
+        mapInstance.fitBounds(bounds, {
+          padding: { top: 100, bottom: 300, left: 50, right: 50 }, // More padding at bottom for UI
+          pitch: 60, // Tilt camera
+          bearing: -20, // Slight rotation
+          duration: 2000,
+          essential: true
+        });
+      }
     }
   }, [selectedJourney, currentJourneyStep, isMapLoaded]);
+
+  // Update highlight layer when selected item changes
+  useEffect(() => {
+    if (!map.current || !map.current.isStyleLoaded()) return;
+    const mapInstance = map.current;
+
+    if (mapInstance.getLayer('selected-vehicle-highlight')) {
+      if (selectedItem && selectedItem.type === 'vehicle') {
+        mapInstance.setFilter('selected-vehicle-highlight', ['==', ['get', 'id'], selectedItem.id || null]);
+      } else {
+        mapInstance.setFilter('selected-vehicle-highlight', ['==', ['get', 'id'], '']); // Hide
+      }
+    }
+  }, [selectedItem]);
 
   const anyError = errorStops || errorVehicles || errorLines || errorLineIcons;
   const anyLoading = selectedLine
@@ -660,8 +886,26 @@ function MapComponent() {
   return (
     <Box sx={{ width: '100%', height: '100%', position: 'relative' }}>
       {anyLoading && (
-        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1500 }}>
-          <CircularProgress />
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 1500,
+            padding: 4,
+            borderRadius: 4,
+            background: 'rgba(10, 10, 10, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2,
+          }}
+        >
+          <CircularProgress color="primary" size={60} thickness={4} />
         </Box>
       )}
       {anyError && (

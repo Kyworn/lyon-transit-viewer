@@ -13,6 +13,7 @@ import {
   List,
   ListItem,
   ListItemText,
+  useMediaQuery,
 } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -56,8 +57,10 @@ interface Journey {
 
 const JourneyNavigator: React.FC = () => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { selectedJourney, setSelectedJourney, currentJourneyStep, setCurrentJourneyStep } = useSelectionStore();
   const [showDetails, setShowDetails] = React.useState(false);
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   // Auto-reset step when journey changes
   useEffect(() => {
@@ -176,12 +179,14 @@ const JourneyNavigator: React.FC = () => {
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         style={{
           position: 'fixed',
-          bottom: 24,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1400,
-          width: '90%',
-          maxWidth: 600,
+          bottom: isMobile ? 0 : 24,
+          ...(isMobile
+            ? { left: 0, right: 0 }
+            : { left: '50%', transform: 'translateX(-50%)' }
+          ),
+          zIndex: 2100, // Above FloatingDock (2000)
+          width: isMobile ? '100%' : '90%',
+          maxWidth: isMobile ? 'none' : 600,
         }}
       >
         <Paper
@@ -190,8 +195,12 @@ const JourneyNavigator: React.FC = () => {
             background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.98)} 0%, ${alpha(theme.palette.background.default, 0.95)} 100%)`,
             backdropFilter: 'blur(20px)',
             border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-            borderRadius: 4,
+            borderBottom: isMobile ? 'none' : `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+            borderRadius: isMobile ? '24px 24px 0 0' : 4,
             overflow: 'hidden',
+            maxHeight: isMobile ? '80vh' : 'auto',
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
           {/* Header */}
@@ -225,210 +234,226 @@ const JourneyNavigator: React.FC = () => {
                 </Typography>
               </Box>
             </Box>
-            <IconButton
-              onClick={handleClose}
-              sx={{
-                color: 'white',
-                '&:hover': {
-                  bgcolor: alpha(theme.palette.common.white, 0.2),
-                },
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
+            <Box sx={{ display: 'flex', gap: 0.5 }}>
+              <IconButton
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                sx={{
+                  color: 'white',
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.common.white, 0.2),
+                  },
+                }}
+              >
+                {isCollapsed ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              </IconButton>
+              <IconButton
+                onClick={handleClose}
+                sx={{
+                  color: 'white',
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.common.white, 0.2),
+                  },
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </Box>
           </Box>
 
-          {/* Content */}
-          <Box sx={{ p: 2 }}>
-            <Stack spacing={2}>
-              {/* Main instruction */}
-              <Typography variant="body1" fontWeight={600}>
-                {getStepInstructions(currentSection)}
-              </Typography>
+          {/* Collapsible content */}
+          <Collapse in={!isCollapsed}>
+            {/* Content */}
+            <Box sx={{ p: 2, flex: 1, overflowY: 'auto' }}>
+              <Stack spacing={2}>
+                {/* Main instruction */}
+                <Typography variant="body1" fontWeight={600}>
+                  {getStepInstructions(currentSection)}
+                </Typography>
 
-              {/* Details chips */}
-              <Stack direction="row" spacing={1} flexWrap="wrap">
-                {/* Duration */}
-                <Chip
-                  icon={<AccessTimeIcon />}
-                  label={getStepDuration(currentSection)}
-                  size="small"
-                  sx={{
-                    bgcolor: alpha(theme.palette.primary.main, 0.1),
-                    border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-                  }}
-                />
-
-                {/* Distance (for walk/bike) */}
-                {getStepDistance(currentSection) && (
+                {/* Details chips */}
+                <Stack direction="row" spacing={1} flexWrap="wrap">
+                  {/* Duration */}
                   <Chip
-                    label={getStepDistance(currentSection)}
+                    icon={<AccessTimeIcon />}
+                    label={getStepDuration(currentSection)}
                     size="small"
                     sx={{
-                      bgcolor: alpha(theme.palette.info.main, 0.1),
-                      border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`,
+                      bgcolor: alpha(theme.palette.primary.main, 0.1),
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
                     }}
                   />
-                )}
 
-                {/* Line chip for public transport */}
-                {currentSection.line && (
-                  <Chip
-                    label={currentSection.line.code}
-                    size="small"
-                    sx={{
-                      bgcolor: `#${currentSection.line.color}`,
-                      color: 'white',
-                      fontWeight: 700,
-                      border: '2px solid rgba(255, 255, 255, 0.3)',
-                    }}
-                  />
+                  {/* Distance (for walk/bike) */}
+                  {getStepDistance(currentSection) && (
+                    <Chip
+                      label={getStepDistance(currentSection)}
+                      size="small"
+                      sx={{
+                        bgcolor: alpha(theme.palette.info.main, 0.1),
+                        border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`,
+                      }}
+                    />
+                  )}
+
+                  {/* Line chip for public transport */}
+                  {currentSection.line && (
+                    <Chip
+                      label={currentSection.line.code}
+                      size="small"
+                      sx={{
+                        bgcolor: `#${currentSection.line.color}`,
+                        color: 'white',
+                        fontWeight: 700,
+                        border: '2px solid rgba(255, 255, 255, 0.3)',
+                      }}
+                    />
+                  )}
+                </Stack>
+
+                {/* From / To with times */}
+                <Box>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Départ
+                      </Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {currentSection.from.name}
+                      </Typography>
+                      <Typography variant="caption" color="primary">
+                        {formatTime(currentSection.departure)}
+                      </Typography>
+                    </Box>
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 2,
+                        bgcolor: alpha(theme.palette.divider, 0.3),
+                      }}
+                    />
+                    <Box sx={{ textAlign: 'right' }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Arrivée
+                      </Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {currentSection.to.name}
+                      </Typography>
+                      <Typography variant="caption" color="primary">
+                        {formatTime(currentSection.arrival)}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Box>
+
+                {/* Show details button for public transport */}
+                {currentSection.type === 'public-transport' && (
+                  <Box>
+                    <IconButton
+                      size="small"
+                      onClick={() => setShowDetails(!showDetails)}
+                      sx={{
+                        width: '100%',
+                        borderRadius: 2,
+                        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                      }}
+                    >
+                      {showDetails ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                      <Typography variant="caption" sx={{ ml: 1 }}>
+                        {showDetails ? 'Masquer' : 'Voir'} les détails
+                      </Typography>
+                    </IconButton>
+                    <Collapse in={showDetails}>
+                      <List dense>
+                        <ListItem>
+                          <ListItemText
+                            primary="Information"
+                            secondary={`Trajet direct de ${currentSection.from.name} à ${currentSection.to.name}`}
+                          />
+                        </ListItem>
+                        <ListItem>
+                          <ListItemText
+                            primary="Note"
+                            secondary="Les arrêts intermédiaires ne sont pas disponibles via l'API"
+                          />
+                        </ListItem>
+                      </List>
+                    </Collapse>
+                  </Box>
                 )}
               </Stack>
+            </Box>
 
-              {/* From / To with times */}
-              <Box>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Départ
-                    </Typography>
-                    <Typography variant="body2" fontWeight={600}>
-                      {currentSection.from.name}
-                    </Typography>
-                    <Typography variant="caption" color="primary">
-                      {formatTime(currentSection.departure)}
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      width: 40,
-                      height: 2,
-                      bgcolor: alpha(theme.palette.divider, 0.3),
-                    }}
-                  />
-                  <Box sx={{ textAlign: 'right' }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Arrivée
-                    </Typography>
-                    <Typography variant="body2" fontWeight={600}>
-                      {currentSection.to.name}
-                    </Typography>
-                    <Typography variant="caption" color="primary">
-                      {formatTime(currentSection.arrival)}
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Box>
-
-              {/* Show details button for public transport */}
-              {currentSection.type === 'public-transport' && (
-                <Box>
-                  <IconButton
-                    size="small"
-                    onClick={() => setShowDetails(!showDetails)}
-                    sx={{
-                      width: '100%',
-                      borderRadius: 2,
-                      border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-                    }}
-                  >
-                    {showDetails ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                    <Typography variant="caption" sx={{ ml: 1 }}>
-                      {showDetails ? 'Masquer' : 'Voir'} les détails
-                    </Typography>
-                  </IconButton>
-                  <Collapse in={showDetails}>
-                    <List dense>
-                      <ListItem>
-                        <ListItemText
-                          primary="Information"
-                          secondary={`Trajet direct de ${currentSection.from.name} à ${currentSection.to.name}`}
-                        />
-                      </ListItem>
-                      <ListItem>
-                        <ListItemText
-                          primary="Note"
-                          secondary="Les arrêts intermédiaires ne sont pas disponibles via l'API"
-                        />
-                      </ListItem>
-                    </List>
-                  </Collapse>
-                </Box>
-              )}
-            </Stack>
-          </Box>
-
-          {/* Navigation controls */}
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              p: 2,
-              pt: 0,
-              gap: 2,
-            }}
-          >
-            <motion.div
-              style={{ flex: 1 }}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
+            {/* Navigation controls */}
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                p: 2,
+                pt: 0,
+                gap: 2,
+              }}
             >
-              <IconButton
-                onClick={handlePrevious}
-                disabled={currentJourneyStep === 0}
-                sx={{
-                  width: '100%',
-                  py: 1.5,
-                  borderRadius: 2,
-                  bgcolor: alpha(theme.palette.primary.main, 0.1),
-                  border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-                  '&:hover': {
-                    bgcolor: alpha(theme.palette.primary.main, 0.2),
-                  },
-                  '&.Mui-disabled': {
-                    bgcolor: alpha(theme.palette.action.disabled, 0.05),
-                    border: `2px solid ${alpha(theme.palette.action.disabled, 0.1)}`,
-                  },
-                }}
+              <motion.div
+                style={{ flex: 1 }}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
               >
-                <ChevronLeftIcon />
-                <Typography variant="button" sx={{ ml: 0.5 }}>
-                  Précédent
-                </Typography>
-              </IconButton>
-            </motion.div>
+                <IconButton
+                  onClick={handlePrevious}
+                  disabled={currentJourneyStep === 0}
+                  sx={{
+                    width: '100%',
+                    py: 1.5,
+                    borderRadius: 2,
+                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                    border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.primary.main, 0.2),
+                    },
+                    '&.Mui-disabled': {
+                      bgcolor: alpha(theme.palette.action.disabled, 0.05),
+                      border: `2px solid ${alpha(theme.palette.action.disabled, 0.1)}`,
+                    },
+                  }}
+                >
+                  <ChevronLeftIcon />
+                  <Typography variant="button" sx={{ ml: 0.5 }}>
+                    Précédent
+                  </Typography>
+                </IconButton>
+              </motion.div>
 
-            <motion.div
-              style={{ flex: 1 }}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-            >
-              <IconButton
-                onClick={handleNext}
-                disabled={currentJourneyStep === totalSteps - 1}
-                sx={{
-                  width: '100%',
-                  py: 1.5,
-                  borderRadius: 2,
-                  bgcolor: alpha(theme.palette.primary.main, 0.1),
-                  border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-                  '&:hover': {
-                    bgcolor: alpha(theme.palette.primary.main, 0.2),
-                  },
-                  '&.Mui-disabled': {
-                    bgcolor: alpha(theme.palette.action.disabled, 0.05),
-                    border: `2px solid ${alpha(theme.palette.action.disabled, 0.1)}`,
-                  },
-                }}
+              <motion.div
+                style={{ flex: 1 }}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
               >
-                <Typography variant="button" sx={{ mr: 0.5 }}>
-                  Suivant
-                </Typography>
-                <ChevronRightIcon />
-              </IconButton>
-            </motion.div>
-          </Box>
+                <IconButton
+                  onClick={handleNext}
+                  disabled={currentJourneyStep === totalSteps - 1}
+                  sx={{
+                    width: '100%',
+                    py: 1.5,
+                    borderRadius: 2,
+                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                    border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.primary.main, 0.2),
+                    },
+                    '&.Mui-disabled': {
+                      bgcolor: alpha(theme.palette.action.disabled, 0.05),
+                      border: `2px solid ${alpha(theme.palette.action.disabled, 0.1)}`,
+                    },
+                  }}
+                >
+                  <Typography variant="button" sx={{ mr: 0.5 }}>
+                    Suivant
+                  </Typography>
+                  <ChevronRightIcon />
+                </IconButton>
+              </motion.div>
+            </Box>
+          </Collapse>
         </Paper>
       </motion.div>
     </AnimatePresence>

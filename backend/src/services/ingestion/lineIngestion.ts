@@ -40,6 +40,12 @@ export const ingestLines = async (
       // Convert color from "R G B" format to "rgb(R, G, B)"
       const formattedColor = couleur ? `rgb(${couleur.split(' ').join(', ')})` : null;
 
+      // Correct category for Funiculars
+      let finalCategory = category;
+      if (ligne && ligne.startsWith('F')) {
+        finalCategory = 'funicular';
+      }
+
       await lineRepository.upsert({
         id,
         line_name: nom_trace,
@@ -61,7 +67,7 @@ export const ingestLines = async (
         line_sort_code: ligne,
         version_name: nom_version,
         last_update,
-        category,
+        category: finalCategory,
         color: formattedColor,
       });
     }

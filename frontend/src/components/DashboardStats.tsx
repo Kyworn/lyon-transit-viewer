@@ -66,7 +66,7 @@ const AnimatedCounter: React.FC<{ value: number; color: string }> = ({ value, co
         WebkitTextFillColor: 'transparent',
         mt: 1.5,
         mb: 0.5,
-        fontSize: { xs: '2.25rem', sm: '2.75rem' },
+        fontSize: { xs: '1.75rem', sm: '2.25rem', md: '2.75rem' },
       }}
     >
       {count.toLocaleString('fr-FR')}
@@ -85,82 +85,82 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, isLoadin
       whileHover={{ y: -8, scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
     >
-    <Card
-      sx={{
-        background: `linear-gradient(135deg, ${alpha(color, 0.15)} 0%, ${alpha(color, 0.05)} 100%)`,
-        backdropFilter: 'blur(10px)',
-        border: `2px solid ${alpha(color, 0.25)}`,
-        borderRadius: '20px',
-        position: 'relative',
-        overflow: 'hidden',
-        transition: 'all 0.4s cubic-bezier(0.19, 1, 0.22, 1)',
-        boxShadow: `0 8px 24px ${alpha(color, 0.15)}`,
-        '&:hover': {
-          borderColor: alpha(color, 0.4),
-          boxShadow: `0 16px 40px ${alpha(color, 0.25)}`,
-        },
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `linear-gradient(135deg, ${alpha(color, 0.1)} 0%, transparent 100%)`,
-          opacity: 0,
-          transition: 'opacity 0.4s',
-        },
-        '&:hover::before': {
-          opacity: 1,
-        },
-      }}
-    >
-      {isLoading && <LinearProgress sx={{ position: 'absolute', top: 0, left: 0, right: 0 }} />}
-      <CardContent sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Box>
-            <Typography
-              variant="caption"
-              sx={{
-                color: alpha(theme.palette.text.primary, 0.6),
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                fontSize: '0.7rem',
-              }}
-            >
-              {title}
-            </Typography>
-            <AnimatedCounter value={value} color={color} />
-            {subtitle && (
+      <Card
+        sx={{
+          background: `linear-gradient(135deg, ${alpha(color, 0.15)} 0%, ${alpha(color, 0.05)} 100%)`,
+          backdropFilter: 'blur(20px)',
+          border: `2px solid ${alpha(color, 0.25)}`,
+          borderRadius: '20px',
+          position: 'relative',
+          overflow: 'hidden',
+          transition: 'all 0.4s cubic-bezier(0.19, 1, 0.22, 1)',
+          boxShadow: `0 8px 24px ${alpha(color, 0.15)}`,
+          '&:hover': {
+            borderColor: alpha(color, 0.4),
+            boxShadow: `0 16px 40px ${alpha(color, 0.25)}`,
+          },
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: `linear-gradient(135deg, ${alpha(color, 0.1)} 0%, transparent 100%)`,
+            opacity: 0,
+            transition: 'opacity 0.4s',
+          },
+          '&:hover::before': {
+            opacity: 1,
+          },
+        }}
+      >
+        {isLoading && <LinearProgress sx={{ position: 'absolute', top: 0, left: 0, right: 0 }} />}
+        <CardContent sx={{ p: { xs: 2, md: 3 }, '&:last-child': { pb: { xs: 2, md: 3 } } }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Box>
               <Typography
                 variant="caption"
                 sx={{
-                  color: alpha(theme.palette.text.primary, 0.5),
-                  fontSize: '0.75rem',
+                  color: alpha(theme.palette.text.primary, 0.6),
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  fontSize: { xs: '0.65rem', md: '0.7rem' },
                 }}
               >
-                {subtitle}
+                {title}
               </Typography>
-            )}
+              <AnimatedCounter value={value} color={color} />
+              {subtitle && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: alpha(theme.palette.text.primary, 0.5),
+                    fontSize: { xs: '0.7rem', md: '0.75rem' },
+                  }}
+                >
+                  {subtitle}
+                </Typography>
+              )}
+            </Box>
+            <Box
+              sx={{
+                width: { xs: 40, md: 56 },
+                height: { xs: 40, md: 56 },
+                borderRadius: { xs: '10px', md: '14px' },
+                background: `linear-gradient(135deg, ${alpha(color, 0.2)} 0%, ${alpha(color, 0.1)} 100%)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: color,
+              }}
+            >
+              {icon}
+            </Box>
           </Box>
-          <Box
-            sx={{
-              width: 56,
-              height: 56,
-              borderRadius: '14px',
-              background: `linear-gradient(135deg, ${alpha(color, 0.2)} 0%, ${alpha(color, 0.1)} 100%)`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: color,
-            }}
-          >
-            {icon}
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
     </motion.div>
   );
 };
@@ -217,48 +217,48 @@ const DashboardStats: React.FC = () => {
         sx={{
           display: 'grid',
           gridTemplateColumns: {
-            xs: '1fr',
+            xs: 'repeat(2, 1fr)', // 2 columns on mobile for compactness
             sm: 'repeat(2, 1fr)',
             md: 'repeat(4, 1fr)',
           },
-          gap: 2,
+          gap: { xs: 1.5, md: 2 },
           mb: 2,
         }}
       >
         <StatCard
-          title="Véhicules actifs"
+          title="Véhicules"
           value={vehicleCount}
-          icon={<DirectionsBusIcon sx={{ fontSize: 28 }} />}
+          icon={<DirectionsBusIcon sx={{ fontSize: { xs: 20, md: 28 } }} />}
           color={theme.palette.success.main}
           isLoading={isLoadingVehicles}
-          subtitle="En circulation"
+          subtitle="Actifs"
           index={0}
         />
         <StatCard
-          title="Alertes trafic"
+          title="Alertes"
           value={alertCount}
-          icon={<WarningAmberIcon sx={{ fontSize: 28 }} />}
+          icon={<WarningAmberIcon sx={{ fontSize: { xs: 20, md: 28 } }} />}
           color={theme.palette.warning.main}
           isLoading={isLoadingAlerts}
-          subtitle="Actuellement"
+          subtitle="En cours"
           index={1}
         />
         <StatCard
           title="Lignes"
           value={lineCount}
-          icon={<RouteIcon sx={{ fontSize: 28 }} />}
+          icon={<RouteIcon sx={{ fontSize: { xs: 20, md: 28 } }} />}
           color={theme.palette.info.main}
           isLoading={isLoadingLines}
-          subtitle="Dans le réseau"
+          subtitle="Total"
           index={2}
         />
         <StatCard
           title="Arrêts"
           value={stopCount}
-          icon={<PlaceIcon sx={{ fontSize: 28 }} />}
+          icon={<PlaceIcon sx={{ fontSize: { xs: 20, md: 28 } }} />}
           color={theme.palette.primary.main}
           isLoading={isLoadingStops}
-          subtitle="Total"
+          subtitle="Desservis"
           index={3}
         />
       </Box>
