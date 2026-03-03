@@ -7,6 +7,9 @@ import { ingestEstimatedTimetables } from './timetableIngestion';
 import { ingestVehiclePositions } from './vehicleIngestion';
 import { ingestLineIcons } from './lineIconIngestion';
 import { ingestionLogger } from '../../utils/logger';
+import { ingestGtfs } from './gtfsIngestion';
+import { purgeRealtimeHistory } from './purgeRealtimeHistory';
+import { runIngestionJob, withAdvisoryLock } from './ingestionUtils';
 
 /**
  * Service principal d'ingestion
@@ -17,11 +20,11 @@ import { ingestionLogger } from '../../utils/logger';
 const ingestStaticData = async () => {
   ingestionLogger.info('📥 Starting static data ingestion...');
   await Promise.all([
-    ingestAlerts(),
-    ingestStations(),
-    ingestAllLines(),
-    ingestStops(),
-    ingestLineIcons(),
+    withAdvisoryLock('ingest_alerts', () => runIngestionJob('ingest_alerts', ingestAlerts)),
+    withAdvisoryLock('ingest_stations', () => runIngestionJob('ingest_stations', ingestStations)),
+    withAdvisoryLock('ingest_lines', () => runIngestionJob('ingest_lines', ingestAllLines)),
+    withAdvisoryLock('ingest_stops', () => runIngestionJob('ingest_stops', ingestStops)),
+    withAdvisoryLock('ingest_line_icons', () => runIngestionJob('ingest_line_icons', ingestLineIcons)),
   ]);
   ingestionLogger.info('✓ Static data ingestion completed');
 };
@@ -29,8 +32,12 @@ const ingestStaticData = async () => {
 // Run all real-time data ingestions
 const ingestRealTimeData = async () => {
   await Promise.all([
-    ingestEstimatedTimetables(),
-    ingestVehiclePositions(),
+    withAdvisoryLock('ingest_estimated_timetables', () =>
+      runIngestionJob('ingest_estimated_timetables', ingestEstimatedTimetables)
+    ),
+    withAdvisoryLock('ingest_vehicle_positions', () =>
+      runIngestionJob('ingest_vehicle_positions', ingestVehiclePositions)
+    ),
   ]);
 };
 
@@ -40,6 +47,7 @@ export const startIngestionService = () => {
   // Initial run on startup
   ingestStaticData();
   ingestRealTimeData();
+  withAdvisoryLock('ingest_gtfs', () => runIngestionJob('ingest_gtfs', ingestGtfs));
 
   // Schedule static data updates every 15 minutes
   cron.schedule('*/15 * * * *', () => {
@@ -50,6 +58,18 @@ export const startIngestionService = () => {
   // Schedule real-time data updates every 5 seconds
   cron.schedule('*/5 * * * * *', () => {
     ingestRealTimeData();
+  });
+
+  // Schedule GTFS import daily at 03:00
+  cron.schedule('0 3 * * *', () => {
+    withAdvisoryLock('ingest_gtfs', () => runIngestionJob('ingest_gtfs', ingestGtfs));
+  });
+
+  // Purge real-time history every 5 minutes
+  cron.schedule('*/5 * * * *', () => {
+    withAdvisoryLock('purge_realtime_history', () =>
+      runIngestionJob('purge_realtime_history', () => purgeRealtimeHistory(30))
+    );
   });
 
   console.log('✓ Ingestion service started successfully');
@@ -66,4 +86,6 @@ export {
   ingestEstimatedTimetables,
   ingestVehiclePositions,
   ingestLineIcons,
+  ingestGtfs,
+  purgeRealtimeHistory,
 };

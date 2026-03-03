@@ -7,7 +7,7 @@ export class VehicleRepository {
       SELECT vehicle_ref, longitude, latitude, bearing, delay, published_line_name,
              destination_name, line_ref, direction_ref, stop_point_name,
              expected_arrival_time, distance_from_stop
-      FROM vehicle_positions
+      FROM vehicle_positions_current
     `;
 
     const whereClauses: string[] = [];
@@ -34,12 +34,12 @@ export class VehicleRepository {
   }
 
   async deleteAll(): Promise<void> {
-    await pool.query('DELETE FROM vehicle_positions');
+    await pool.query('DELETE FROM vehicle_positions_current');
   }
 
   async upsert(vehicle: Partial<VehiclePosition>): Promise<void> {
     const query = `
-      INSERT INTO vehicle_positions (
+      INSERT INTO vehicle_positions_current (
         vehicle_ref, recorded_at_time, valid_until_time, line_ref, direction_ref,
         dated_vehicle_journey_ref, published_line_name, direction_name, operator_ref,
         destination_ref, destination_name, longitude, latitude, bearing, delay,

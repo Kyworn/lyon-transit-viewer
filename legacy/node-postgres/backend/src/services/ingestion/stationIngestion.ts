@@ -5,7 +5,7 @@ import { pool } from '../../database/pool';
  * Service d'ingestion des stations (métro/tram principalement)
  * Format: WFS GeoJSON de GeoServer
  */
-export const ingestStations = async (): Promise<void> => {
+export const ingestStations = async (): Promise<number> => {
   try {
     const features = await grandLyonApi.getStations();
 
@@ -34,6 +34,7 @@ export const ingestStations = async (): Promise<void> => {
     }
 
     console.log(`✓ Successfully ingested ${features.length} stations`);
+    return features.length;
   } catch (error) {
     console.error('✗ Error ingesting stations:', error);
     throw error;

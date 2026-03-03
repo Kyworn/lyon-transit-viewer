@@ -126,7 +126,7 @@ export class StopRepository {
       `SELECT DISTINCT ON (l.line_sort_code)
         l.line_sort_code as line_code,
         vp.delay
-      FROM vehicle_positions vp
+      FROM vehicle_positions_current vp
       JOIN lines l ON substring(vp.line_ref from '::(.*?):') = l.line_sort_code
       WHERE l.line_sort_code = ANY($1) AND vp.delay IS NOT NULL
       ORDER BY l.line_sort_code, vp.recorded_at_time DESC;`,

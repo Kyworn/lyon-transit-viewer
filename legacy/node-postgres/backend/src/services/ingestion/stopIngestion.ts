@@ -5,7 +5,7 @@ import { stopRepository } from '../../database/repositories';
  * Service d'ingestion des arrêts
  * Format: WFS GeoJSON de GeoServer
  */
-export const ingestStops = async (): Promise<void> => {
+export const ingestStops = async (): Promise<number> => {
   try {
     const features = await grandLyonApi.getStops();
 
@@ -35,6 +35,7 @@ export const ingestStops = async (): Promise<void> => {
     }
 
     console.log(`✓ Successfully ingested ${features.length} stops`);
+    return features.length;
   } catch (error) {
     console.error('✗ Error ingesting stops:', error);
     throw error;

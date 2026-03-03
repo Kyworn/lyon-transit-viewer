@@ -7,7 +7,7 @@ import { lineRepository } from '../../database/repositories';
  */
 export const ingestLines = async (
   category: 'bus' | 'metro' | 'tram' | 'rhonexpress'
-): Promise<void> => {
+): Promise<number> => {
   try {
     const features = await grandLyonApi.getLines(category);
 
@@ -73,13 +73,14 @@ export const ingestLines = async (
     }
 
     console.log(`✓ Successfully ingested ${features.length} ${category} lines`);
+    return features.length;
   } catch (error) {
     console.error(`✗ Error ingesting ${category} lines:`, error);
     throw error;
   }
 };
 
-export const ingestAllLines = async (): Promise<void> => {
+export const ingestAllLines = async (): Promise<number> => {
   const categories: Array<'bus' | 'metro' | 'tram' | 'rhonexpress'> = [
     'bus',
     'metro',
@@ -87,7 +88,9 @@ export const ingestAllLines = async (): Promise<void> => {
     'rhonexpress',
   ];
 
+  let total = 0;
   for (const category of categories) {
-    await ingestLines(category);
+    total += await ingestLines(category);
   }
+  return total;
 };

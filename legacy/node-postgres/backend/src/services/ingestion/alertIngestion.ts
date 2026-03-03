@@ -5,7 +5,7 @@ import { alertRepository } from '../../database/repositories';
  * Service d'ingestion des alertes trafic
  * Format: REST JSON de l'API GrandLyon
  */
-export const ingestAlerts = async (): Promise<void> => {
+export const ingestAlerts = async (): Promise<number> => {
   try {
     const alerts = await grandLyonApi.getAlerts();
 
@@ -48,6 +48,7 @@ export const ingestAlerts = async (): Promise<void> => {
     }
 
     console.log(`✓ Successfully ingested ${alerts.length} alerts`);
+    return alerts.length;
   } catch (error) {
     console.error('✗ Error ingesting alerts:', error);
     throw error;

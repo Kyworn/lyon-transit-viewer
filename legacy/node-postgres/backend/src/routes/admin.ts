@@ -19,7 +19,7 @@ router.get(
       stopStats,
       dbSize,
     ] = await Promise.all([
-      pool.query('SELECT COUNT(*) as count FROM vehicle_positions'),
+      pool.query('SELECT COUNT(*) as count FROM vehicle_positions_current'),
       pool.query(`
         SELECT
           COUNT(*) as total,
@@ -52,7 +52,7 @@ router.get(
       SELECT
         'vehicles' as type,
         MAX(recorded_at_time) as last_update
-      FROM vehicle_positions
+      FROM vehicle_positions_current
       UNION ALL
       SELECT
         'alerts' as type,

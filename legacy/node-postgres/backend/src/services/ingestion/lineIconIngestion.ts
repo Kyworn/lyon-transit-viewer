@@ -5,7 +5,7 @@ import { lineIconRepository } from '../../database/repositories';
  * Service d'ingestion des mappings d'icônes de lignes
  * Format: Fichier CSV local
  */
-export const ingestLineIcons = async (): Promise<void> => {
+export const ingestLineIcons = async (): Promise<number> => {
   try {
     const csvFilePath = './Liste_pictogrammes_lignes.csv';
     const csvContent = await fs.promises.readFile(csvFilePath, 'utf8');
@@ -30,6 +30,7 @@ export const ingestLineIcons = async (): Promise<void> => {
     }
 
     console.log(`✓ Successfully ingested ${count} line icon mappings`);
+    return count;
   } catch (error) {
     console.error('✗ Error ingesting line icon mappings:', error);
     throw error;
