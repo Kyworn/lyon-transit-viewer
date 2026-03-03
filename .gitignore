@@ -6,6 +6,9 @@
 # Build artifacts
 /build
 /dist
+/frontend/build
+/frontend/.cache
+/spacetimedb/spacetimedb/target
 
 # Env files (IMPORTANT: Never commit these!)
 .env
