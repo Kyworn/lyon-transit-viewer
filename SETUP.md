@@ -1,229 +1,158 @@
-# Setup Guide - Lyon Transit Viewer
+# Setup Local - Lyon Transit Viewer (SpacetimeDB)
 
-## Prerequisites
+## 1) Prerequis
 
-- Docker & Docker Compose
-- Mapbox API Token (free tier available)
-- TCL API Token (optional - for real-time data)
+- `spacetime` CLI installe et accessible dans le `PATH`
+- Node.js + npm
+- Python 3 (pour servir le build frontend)
+- Token Mapbox
+- Identifiants TCL (`email:password`) pour ingestion realtime
 
----
-
-## Step 1: Clone the Repository
+Verification rapide:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/lyon-transit-viewer.git
+spacetime --version
+node --version
+npm --version
+python3 --version
+```
+
+## 2) Cloner le projet
+
+```bash
+git clone https://github.com/Kyworn/lyon-transit-viewer.git
 cd lyon-transit-viewer
 ```
 
----
-
-## Step 2: Configure Environment Variables
-
-### 2.1 Root Environment Variables
-
-Copy the example file:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and configure:
-
-```bash
-# TCL API Token
-TCL_API_TOKEN=your_base64_encoded_token
-
-# Database credentials
-POSTGRES_USER=user
-POSTGRES_PASSWORD=your_secure_password
-POSTGRES_DB=lyon_transit
-
-# Redis
-REDIS_URL=redis://redis:6379
-
-# Database URL (update password to match above)
-DATABASE_URL=postgres://user:your_secure_password@db:5432/lyon_transit
-```
-
-### 2.2 Frontend Environment Variables
+## 3) Configurer le frontend
 
 ```bash
 cp frontend/.env.example frontend/.env
 ```
 
-Edit `frontend/.env`:
+Editer `frontend/.env`:
 
-```bash
+```env
 REACT_APP_MAPBOX_TOKEN=your_mapbox_token_here
+REACT_APP_SPACETIMEDB_URI=http://127.0.0.1:3000
+REACT_APP_SPACETIMEDB_DB=lyon-transit
 GENERATE_SOURCEMAP=false
 ```
 
----
+## 4) Demarrer SpacetimeDB local
 
-## Step 3: Get Your API Tokens
-
-### Mapbox Token (Required)
-
-1. Go to [https://account.mapbox.com/](https://account.mapbox.com/)
-2. Sign up (free tier available)
-3. Go to **Access Tokens**
-4. Create a new token or use the default public token
-5. Copy the token to `frontend/.env`
-
-### TCL API Token (Optional - for real-time data)
-
-The TCL API token is base64-encoded credentials in format `email:password`.
-
-**Option 1: Contact TCL/SYTRAL**
-- Request API access from [TCL Open Data](https://data.grandlyon.com/)
-
-**Option 2: Use public data (limited)**
-- Some endpoints work without authentication
-- Real-time vehicle positions may be restricted
-
-**To encode your credentials:**
+Dans un terminal dedie:
 
 ```bash
-echo -n "your_email@example.com:your_password" | base64
+spacetime start --listen-addr 127.0.0.1:3000
 ```
 
-Copy the output to `.env` as `TCL_API_TOKEN`.
-
----
-
-## Step 4: Build and Run with Docker
-
-Start all services:
+Publier le module:
 
 ```bash
-docker compose up --build -d
+spacetime publish --server local --module-path spacetimedb/spacetimedb --yes lyon-transit
 ```
 
-This will start:
-- **PostgreSQL** database (port 5432)
-- **Redis** cache (port 6379)
-- **Backend API** (port 5000)
-- **Frontend** (port 3000)
-- **PgAdmin** (port 8080)
-- **Adminer** (port 8081)
-
----
-
-## Step 5: Access the Application
-
-- **Frontend:** [http://localhost:3000](http://localhost:3000)
-- **Backend API:** [http://localhost:5000/api](http://localhost:5000/api)
-- **PgAdmin:** [http://localhost:8080](http://localhost:8080)
-  - Email: `admin@example.com` (or as configured in `.env`)
-  - Password: `admin` (or as configured in `.env`)
-- **Adminer:** [http://localhost:8081](http://localhost:8081)
-
----
-
-## Step 6: Verify Everything Works
-
-Check container status:
+## 5) Configurer les identifiants TCL (recommande)
 
 ```bash
-docker compose ps
+./scripts/set_config.sh "<email:password>"
 ```
 
-All containers should show `Up`.
-
-Check backend logs:
+Optionnel avec URL GTFS custom:
 
 ```bash
-docker logs lyon_transit_backend
+./scripts/set_config.sh "<email:password>" "https://....zip"
 ```
 
-You should see:
-- `✓ Successfully ingested X stops`
-- `✓ Successfully ingested X vehicle positions`
+## 6) Lancer l'ingestion continue
 
----
-
-## Troubleshooting
-
-### Database Connection Error
-
-If backend shows database connection errors:
-
-1. Check that `.env` has correct `DATABASE_URL`
-2. Ensure passwords match between `POSTGRES_PASSWORD` and `DATABASE_URL`
-3. Restart containers:
-   ```bash
-   docker compose down
-   docker compose up -d
-   ```
-
-### Mapbox Map Not Loading
-
-1. Verify `REACT_APP_MAPBOX_TOKEN` in `frontend/.env`
-2. Check browser console for errors
-3. Ensure token is valid at [https://account.mapbox.com/access-tokens/](https://account.mapbox.com/access-tokens/)
-
-### No Real-Time Vehicle Data
-
-This likely means:
-- `TCL_API_TOKEN` is missing or invalid
-- API endpoint is down
-- Check backend logs: `docker logs lyon_transit_backend`
-
----
-
-## Development Mode
-
-To run with live reload:
-
-### Backend:
+Dans un terminal dedie:
 
 ```bash
-cd backend
-npm install
-npm run dev
+./scripts/ingest_daemon.sh
 ```
 
-### Frontend:
+Variables utiles:
+
+```bash
+DB_NAME=lyon-transit SERVER_NAME=local REALTIME_INTERVAL=15 STATIC_INTERVAL=900 GTFS_INTERVAL=86400 PURGE_INTERVAL=300 ./scripts/ingest_daemon.sh
+```
+
+## 7) Lancer le frontend
 
 ```bash
 cd frontend
 npm install
-npm start
+npm run build
+python3 -m http.server 3001 --bind 127.0.0.1 -d build
 ```
 
----
+Acces:
 
-## Production Deployment
+- Front: `http://127.0.0.1:3001`
+- SpacetimeDB: `http://127.0.0.1:3000`
 
-For production:
+## 8) Verifications
 
-1. Change all default passwords in `.env`
-2. Use strong credentials for `POSTGRES_PASSWORD`
-3. Set `NODE_ENV=production` in backend
-4. Build frontend: `npm run build`
-5. Use reverse proxy (nginx) for HTTPS
-6. Restrict database ports (don't expose 5432 publicly)
+Verifier que les donnees remontent:
 
----
+```bash
+spacetime sql --server local lyon-transit "select count(*) as lines_count from lines"
+spacetime sql --server local lyon-transit "select count(*) as vehicles_count from vehicle_positions_current"
+spacetime sql --server local lyon-transit "select id,job_name,status,rows_upserted,error from ingestion_runs order by id desc limit 20"
+spacetime sql --server local lyon-transit "select * from config limit 5"
+```
 
-## Security Notes
+Verifier la procedure d'itineraire:
 
-⚠️ **NEVER commit `.env` files to Git!**
+```bash
+spacetime call --server local lyon-transit calculate_journey '{"from_lat":45.765572,"from_lng":4.910809,"to_lat":45.740671,"to_lng":4.818846,"datetime":"2026-03-02T22:10:00.000Z","is_arrival_time":false,"transport_modes":"[\"metro\",\"tramway\",\"bus\"]","walk":"normal","bike":{"none":[]},"pmr":false,"car":false,"data_freshness":"1"}'
+```
 
-- `.env` is already in `.gitignore`
-- Only commit `.env.example` files
-- Rotate tokens regularly
-- Use different credentials for production
+## 9) Troubleshooting
 
----
+### A) Mapbox token absent
 
-## Support
+Symptome:
+- `Mapbox access token is not set`
 
-For issues or questions:
-- Open an issue on GitHub
-- Check backend/frontend logs
-- Review Docker container status
+Action:
+- verifier `frontend/.env`
+- refaire `npm run build`
+- hard refresh navigateur (`Ctrl+Shift+R`)
 
----
+### B) Erreur WebSocket SpacetimeDB
 
-**Last Updated:** November 2025
+Symptome:
+- `WebSocket ... /subscribe failed`
+
+Action:
+- verifier que `spacetime start` est actif
+- verifier `REACT_APP_SPACETIMEDB_URI`
+- verifier port 3000 ouvert localement
+
+### C) `calculate_journey` en erreur 500
+
+Le backend contient maintenant un fallback automatique sur payload simplifie.
+Si l'erreur persiste:
+
+```bash
+spacetime logs --server local lyon-transit
+```
+
+et tester l'appel manuel (section 8).
+
+### D) Aucun vehicule / stats a 0
+
+Action:
+- verifier `set_config` (token TCL)
+- verifier `ingest_daemon.sh` actif
+- verifier les dernieres lignes de `ingestion_runs`
+
+### E) Erreur Option SpacetimeDB (`some`/`none`)
+
+Pour les options dans `spacetime call`:
+- valeur definie: `{"some":"..."}`
+- valeur absente: `{"none":[]}`
+
