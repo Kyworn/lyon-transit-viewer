@@ -1,83 +1,94 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Box, IconButton, Tooltip, useTheme, alpha } from '@mui/material';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import MapIcon from '@mui/icons-material/Map';
-import NotificationsIcon from '@mui/icons-material/Notifications';
-import DirectionsIcon from '@mui/icons-material/Directions';
-import SearchIcon from '@mui/icons-material/Search';
+import { alpha, Box, IconButton, Tooltip, Typography, useTheme } from '@mui/material';
+import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded';
+import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded';
+import AltRouteRoundedIcon from '@mui/icons-material/AltRouteRounded';
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 
 interface FloatingDockProps {
-    onToggleDashboard: () => void;
-    onToggleAlerts: () => void;
-    onToggleRoutes: () => void;
-    onToggleSearch: () => void;
+  onToggleDashboard: () => void;
+  onToggleAlerts: () => void;
+  onToggleRoutes: () => void;
+  onToggleSearch: () => void;
 }
 
 const FloatingDock: React.FC<FloatingDockProps> = ({
-    onToggleDashboard,
-    onToggleAlerts,
-    onToggleRoutes,
-    onToggleSearch,
+  onToggleDashboard,
+  onToggleAlerts,
+  onToggleRoutes,
+  onToggleSearch,
 }) => {
-    const theme = useTheme();
+  const theme = useTheme();
 
-    const dockItems = [
-        { icon: <MapIcon />, label: 'Explorer', action: () => { } }, // Default view
-        { icon: <SearchIcon />, label: 'Rechercher', action: onToggleSearch },
-        { icon: <DirectionsIcon />, label: 'Itinéraire', action: onToggleRoutes },
-        { icon: <NotificationsIcon />, label: 'Alertes', action: onToggleAlerts },
-        { icon: <DashboardIcon />, label: 'Stats', action: onToggleDashboard },
-    ];
+  const items = [
+    { label: 'Explorer', icon: <SearchRoundedIcon fontSize="small" />, onClick: onToggleSearch },
+    { label: 'Route', icon: <AltRouteRoundedIcon fontSize="small" />, onClick: onToggleRoutes },
+    { label: 'Alertes', icon: <NotificationsActiveRoundedIcon fontSize="small" />, onClick: onToggleAlerts },
+    { label: 'Stats', icon: <DashboardRoundedIcon fontSize="small" />, onClick: onToggleDashboard },
+  ];
 
-    return (
-        <Box
+  return (
+    <Box
+      component={motion.div}
+      initial={{ y: 40, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
+      sx={{
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        mx: 'auto',
+        width: 'fit-content',
+        bottom: { xs: 'calc(env(safe-area-inset-bottom, 0px) + 10px)', md: 18 },
+        zIndex: 2300,
+        display: 'flex',
+        alignItems: 'center',
+        gap: { xs: 0.7, md: 1.2 },
+        px: { xs: 1, md: 1.5 },
+        py: { xs: 0.8, md: 1.1 },
+        borderRadius: 999,
+        border: `1px solid ${alpha(theme.palette.primary.light, 0.2)}`,
+        background: `linear-gradient(120deg, ${alpha('#0F172A', 0.92)} 0%, ${alpha('#1E293B', 0.88)} 100%)`,
+        backdropFilter: 'blur(20px)',
+        boxShadow: `0 14px 28px ${alpha('#020617', 0.75)}`,
+      }}
+    >
+      {items.map((item) => (
+        <Tooltip key={item.label} title={item.label}>
+          <IconButton
+            onClick={item.onClick}
             sx={{
-                position: 'fixed',
-                bottom: { xs: 24, md: 32 },
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 2000,
-                display: 'flex',
-                gap: { xs: 0.5, md: 2 }, // Reduced gap for mobile
-                padding: { xs: '6px 12px', md: '12px 24px' }, // Reduced padding for mobile
-                borderRadius: '16px',
-                backgroundColor: 'rgba(10, 10, 10, 0.6)', // Changed background
-                backdropFilter: 'blur(20px)', // Changed blur
-                border: '1px solid rgba(255, 255, 255, 0.08)', // Changed border
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)', // Changed shadow
-                width: 'auto', // Added width auto
-                maxWidth: '95vw', // Prevent overflow
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 0.7,
+              borderRadius: 999,
+              minWidth: { xs: 42, md: 108 },
+              height: { xs: 38, md: 40 },
+              px: { xs: 1.2, md: 1.4 },
+              py: 0,
+              color: theme.palette.text.secondary,
+              border: `1px solid ${alpha(theme.palette.text.secondary, 0.15)}`,
+              '&:hover': {
+                color: theme.palette.primary.light,
+                borderColor: alpha(theme.palette.primary.light, 0.5),
+                bgcolor: alpha(theme.palette.primary.main, 0.15),
+              },
             }}
-            component={motion.div}
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        >
-            {dockItems.map((item, index) => (
-                <Tooltip key={index} title={item.label} placement="top" arrow>
-                    <IconButton
-                        onClick={item.action}
-                        sx={{
-                            color: 'rgba(255, 255, 255, 0.5)', // Changed default color
-                            backgroundColor: 'transparent', // Changed default background
-                            padding: { xs: 0.8, md: 1.5 }, // Changed padding for icon button
-                            borderRadius: '12px', // Changed border radius
-                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', // Changed transition
-                            '&:hover': {
-                                backgroundColor: 'rgba(255, 255, 255, 0.15)', // Changed hover background
-                                transform: 'translateY(-2px)', // Changed hover transform
-                                color: 'rgba(255, 255, 255, 0.8)', // Changed hover color
-                                boxShadow: 'none', // Removed specific shadow
-                            },
-                        }}
-                    >
-                        {item.icon}
-                    </IconButton>
-                </Tooltip>
-            ))}
-        </Box>
-    );
+          >
+            {item.icon}
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: 700, lineHeight: 1, display: { xs: 'none', md: 'inline' }, whiteSpace: 'nowrap' }}
+            >
+              {item.label}
+            </Typography>
+          </IconButton>
+        </Tooltip>
+      ))}
+    </Box>
+  );
 };
 
 export default FloatingDock;

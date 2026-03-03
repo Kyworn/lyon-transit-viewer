@@ -23,6 +23,7 @@ export interface Stop {
   municipality: string;
   zone: string;
   service_info: string;
+  gtfs_stop_id?: string;
 }
 
 export interface Vehicle {
@@ -34,6 +35,9 @@ export interface Vehicle {
   published_line_name: string;
   destination_name: string;
   line_ref: string;
+  dated_vehicle_journey_ref?: string;
+  direction_ref?: string;
+  stop_point_ref?: string;
   stop_point_name?: string;
   expected_arrival_time?: string;
   distance_from_stop?: number;

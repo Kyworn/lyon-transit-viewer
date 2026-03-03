@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useSelectionStore } from '../stores/selectionStore';
 import { Vehicle } from '../types';
 import { useLines } from '../hooks/useLines';
+import { useSpacetime } from '../spacetime/useSpacetime';
 import {
   Box,
   Typography,
@@ -33,6 +34,7 @@ const SelectedItemDetails: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { selectedItem, setSelectedItem, setCenterCoordinates } = useSelectionStore();
   const { data: lines } = useLines();
+  const { conn, connected } = useSpacetime();
 
   if (!selectedItem || selectedItem.type !== 'vehicle') return null;
 
@@ -60,14 +62,135 @@ const SelectedItemDetails: React.FC = () => {
 
   const formatTime = (time: string) => {
     if (!time) return '--:--';
-    return new Date(time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const d = new Date(time);
+    if (!Number.isFinite(d.getTime())) return '--:--';
+    return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   };
 
   const formatDelay = (delay: string) => {
-    if (!delay || delay === 'PT0S') return "À l'heure";
-    // Simple parse for PTxxMxxS
+    if (!delay || delay === 'PT0S') {
+      if (vehicle.expected_arrival_time) {
+        const diffMs = new Date(vehicle.expected_arrival_time).getTime() - Date.now();
+        const diffMin = Math.round(diffMs / 60000);
+        if (Number.isFinite(diffMin) && diffMin > 0) return `Dans ${diffMin} min`;
+      }
+      return "Temps réel";
+    }
     return delay.replace('PT', '').replace('M', ' min ').replace('S', ' s').toLowerCase();
   };
+
+  const haversineMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const R = 6371000;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c);
+  };
+
+  const fallbackFromCalls = useMemo(() => {
+    if (!conn || !connected) {
+      return { stopName: null as string | null, arrival: null as string | null, distanceMeters: null as number | null };
+    }
+
+    const now = Date.now() - 60_000;
+    const horizon = Date.now() + 2 * 60 * 60 * 1000;
+    const parseTime = (value?: string | null) => {
+      if (!value) return null;
+      const t = new Date(value).getTime();
+      return Number.isFinite(t) ? t : null;
+    };
+
+    const stopsByGtfs = new Map<string, { name: string; lat: number | null; lon: number | null }>();
+    const stopsById = new Map<string, { name: string; lat: number | null; lon: number | null }>();
+    Array.from(conn.db.stops.iter() as Iterable<any>).forEach((s) => {
+      const row = {
+        name: s.name || '',
+        lat: typeof s.latitude === 'number' ? s.latitude : null,
+        lon: typeof s.longitude === 'number' ? s.longitude : null,
+      };
+      if (s.id) {
+        stopsById.set(s.id, row);
+      }
+      if (s.gtfsStopId) {
+        stopsByGtfs.set(s.gtfsStopId, row);
+      }
+    });
+
+    const journeyByRef = new Map<string, { lineSortCode: string; directionRef: string }>();
+    Array.from(conn.db.estimated_vehicle_journeys_current.iter() as Iterable<any>).forEach((j) => {
+      if (!j.datedVehicleJourneyRef) return;
+      journeyByRef.set(j.datedVehicleJourneyRef, {
+        lineSortCode: (j.lineSortCode || '').toString().toUpperCase(),
+        directionRef: (j.directionRef || '').toString().toLowerCase(),
+      });
+    });
+
+    const targetLine = (vehicle.published_line_name || '').trim().toUpperCase();
+    const targetDirection = (vehicle.direction_ref || '').trim().toLowerCase();
+    const targetStopRef = vehicle.stop_point_ref || null;
+
+    const calls = Array.from(conn.db.estimated_calls_current.iter() as Iterable<any>)
+      .map((c) => ({
+        datedVehicleJourneyRef: c.datedVehicleJourneyRef || null,
+        stopPointRef: c.stopPointRef || null,
+        gtfsStopId: c.gtfsStopId || null,
+        stopPointName: c.stopPointName || null,
+        expectedArrivalTime: c.expectedArrivalTime || c.aimedArrivalTime || null,
+      }))
+      .filter((c) => {
+        const ts = parseTime(c.expectedArrivalTime);
+        if (ts == null || ts < now || ts > horizon) return false;
+
+        if (vehicle.dated_vehicle_journey_ref) {
+          return c.datedVehicleJourneyRef === vehicle.dated_vehicle_journey_ref;
+        }
+
+        if (targetStopRef && c.stopPointRef !== targetStopRef) return false;
+        if (!targetLine || !c.datedVehicleJourneyRef) return false;
+        const journey = journeyByRef.get(c.datedVehicleJourneyRef);
+        if (!journey || journey.lineSortCode !== targetLine) return false;
+        if (targetDirection && journey.directionRef && journey.directionRef !== targetDirection) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const ta = parseTime(a.expectedArrivalTime) || Number.MAX_SAFE_INTEGER;
+        const tb = parseTime(b.expectedArrivalTime) || Number.MAX_SAFE_INTEGER;
+        return ta - tb;
+      });
+
+    const first = calls[0] || null;
+    const stopFromRef = targetStopRef ? stopsById.get(targetStopRef) : null;
+    const stopData = first?.gtfsStopId ? stopsByGtfs.get(first.gtfsStopId) : null;
+    const stopName = vehicle.stop_point_name || stopFromRef?.name || stopData?.name || first?.stopPointName || null;
+    let distanceMeters: number | null = null;
+    const distanceStop = stopFromRef || stopData;
+    if (distanceStop?.lat != null && distanceStop?.lon != null && vehicle.latitude && vehicle.longitude) {
+      distanceMeters = haversineMeters(vehicle.latitude, vehicle.longitude, distanceStop.lat, distanceStop.lon);
+    }
+
+    return { stopName, arrival: first?.expectedArrivalTime || null, distanceMeters };
+  }, [
+    conn,
+    connected,
+    vehicle.dated_vehicle_journey_ref,
+    vehicle.direction_ref,
+    vehicle.published_line_name,
+    vehicle.stop_point_name,
+    vehicle.stop_point_ref,
+    vehicle.latitude,
+    vehicle.longitude
+  ]);
+
+  const displayStopName = vehicle.stop_point_name || fallbackFromCalls.stopName || 'Information indisponible';
+  const displayArrival = vehicle.expected_arrival_time || fallbackFromCalls.arrival || '';
+  const displayDistance =
+    vehicle.distance_from_stop != null
+      ? vehicle.distance_from_stop
+      : fallbackFromCalls.distanceMeters;
 
   const Content = () => (
     <Box sx={{ p: 0 }}>
@@ -127,10 +250,10 @@ const SelectedItemDetails: React.FC = () => {
               <Box>
                 <Typography variant="caption" color="text.secondary" fontWeight={700}>PROCHAIN ARRÊT</Typography>
                 <Typography variant="body1" fontWeight={600}>
-                  {vehicle.stop_point_name || 'En transit'}
+                  {displayStopName}
                 </Typography>
                 <Typography variant="caption" color="primary">
-                  Arrivée prévue : {formatTime(vehicle.expected_arrival_time || '')}
+                  Arrivée prévue : {displayArrival ? formatTime(displayArrival) : 'Donnée non disponible'}
                 </Typography>
               </Box>
             </CardContent>
@@ -152,7 +275,7 @@ const SelectedItemDetails: React.FC = () => {
             <CardContent sx={{ p: '16px !important', textAlign: 'center' }}>
               <SpeedIcon color="action" sx={{ mb: 1 }} />
               <Typography variant="body2" fontWeight={700}>
-                {vehicle.distance_from_stop ? `${vehicle.distance_from_stop}m` : '--'}
+                {displayDistance != null ? `${displayDistance}m` : 'N/A'}
               </Typography>
               <Typography variant="caption" color="text.secondary">Distance arrêt</Typography>
             </CardContent>

@@ -1,19 +1,35 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useSpacetime } from '../spacetime/useSpacetime';
 import { LineIcon } from '../types';
 
-const fetchLineIcons = async (): Promise<LineIcon[]> => {
-  const response = await fetch('/api/line-icons');
-  if (!response.ok) {
-    throw new Error('Network response was not ok');
-  }
-  return response.json();
-};
-
 export const useLineIcons = () => {
-  return useQuery<LineIcon[], Error>({
-    queryKey: ['lineIcons'],
-    queryFn: fetchLineIcons,
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-    cacheTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
-  });
+  const { conn, connected, error } = useSpacetime();
+  const [data, setData] = useState<LineIcon[]>([]);
+
+  useEffect(() => {
+    if (!conn || !connected) return;
+
+    const update = () => {
+      const rows = Array.from(conn.db.line_icon_mapping.iter() as Iterable<any>);
+      const mapped: LineIcon[] = rows.map((row) => ({
+        code_ligne: row.codeLigne,
+        picto_mode: row.pictoMode || '',
+        picto_ligne: row.pictoLigne || '',
+      }));
+      setData(mapped);
+    };
+
+    update();
+    const timer = window.setInterval(update, 15000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [conn, connected]);
+
+  return {
+    data,
+    isLoading: !connected,
+    error: error ? new Error(error) : null,
+  };
 };

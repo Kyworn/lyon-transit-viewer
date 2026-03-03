@@ -1,82 +1,64 @@
-import { createTheme, alpha } from '@mui/material/styles';
+import { alpha, createTheme } from '@mui/material/styles';
 
-// --- PROJECT NEON DESIGN SYSTEM ---
-
-// 1. CORE PALETTE (OLED & NEON)
-const NEON_CYAN = '#00F0FF';
-const NEON_MAGENTA = '#FF003C';
-const NEON_LIME = '#CCFF00';
-const NEON_YELLOW = '#FCEE0A';
-const OLED_BLACK = '#000000';
-const DEEP_SPACE = '#050505';
-
-// 2. GLASSMORPHISM 3.0 (Hyper-Modern)
-const GLASS_BG = 'rgba(0, 0, 0, 0.4)'; // More transparent
-const GLASS_BORDER = 'rgba(255, 255, 255, 0.08)';
-const GLASS_BLUR = '40px'; // Extreme blur
-const NEON_GLOW = (color: string) => `0 0 20px ${alpha(color, 0.4)}, 0 0 40px ${alpha(color, 0.2)}`;
+const BRAND_NAVY = '#0F172A';
+const BRAND_STEEL = '#1E293B';
+const BRAND_SKY = '#0EA5E9';
+const BRAND_MINT = '#22C55E';
+const BRAND_AMBER = '#F59E0B';
+const BRAND_CORAL = '#F97316';
+const PAPER_GLASS = 'rgba(15, 23, 42, 0.74)';
 
 export const theme = createTheme({
   palette: {
     mode: 'dark',
     primary: {
-      main: NEON_CYAN,
-      light: '#5FFFFF',
-      dark: '#00B8C4',
-      contrastText: OLED_BLACK,
+      main: BRAND_SKY,
+      light: '#38BDF8',
+      dark: '#0284C7',
+      contrastText: '#F8FAFC',
     },
     secondary: {
-      main: NEON_MAGENTA,
-      light: '#FF4D79',
-      dark: '#C4002E',
-      contrastText: '#FFFFFF',
+      main: BRAND_CORAL,
+      light: '#FB923C',
+      dark: '#EA580C',
+      contrastText: '#F8FAFC',
     },
-    error: {
-      main: '#FF2A2A',
-    },
-    warning: {
-      main: NEON_YELLOW,
-    },
-    success: {
-      main: NEON_LIME,
-    },
-    info: {
-      main: '#2D9CDB',
-    },
+    success: { main: BRAND_MINT },
+    warning: { main: BRAND_AMBER },
+    error: { main: '#EF4444' },
+    info: { main: '#38BDF8' },
     background: {
-      default: OLED_BLACK,
-      paper: DEEP_SPACE,
+      default: '#020617',
+      paper: BRAND_NAVY,
     },
     text: {
-      primary: '#FFFFFF',
-      secondary: 'rgba(255, 255, 255, 0.6)',
+      primary: '#E2E8F0',
+      secondary: '#94A3B8',
     },
-    divider: 'rgba(255, 255, 255, 0.1)',
+    divider: alpha('#94A3B8', 0.22),
   },
+  shape: { borderRadius: 16 },
   typography: {
-    fontFamily: '"Space Grotesk", "Inter", sans-serif',
-    h1: { fontFamily: 'Space Grotesk', fontWeight: 800, letterSpacing: '-0.02em' },
-    h2: { fontFamily: 'Space Grotesk', fontWeight: 800, letterSpacing: '-0.02em' },
-    h3: { fontFamily: 'Space Grotesk', fontWeight: 700, letterSpacing: '-0.01em' },
-    h4: { fontFamily: 'Space Grotesk', fontWeight: 700, letterSpacing: '-0.01em' },
-    h5: { fontFamily: 'Space Grotesk', fontWeight: 600 },
-    h6: { fontFamily: 'Space Grotesk', fontWeight: 600 },
-    subtitle1: { fontFamily: 'Inter', fontWeight: 500 },
-    subtitle2: { fontFamily: 'Inter', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' },
-    body1: { fontFamily: 'Inter', lineHeight: 1.6 },
-    body2: { fontFamily: 'Inter', lineHeight: 1.5 },
-    button: { fontFamily: 'Space Grotesk', fontWeight: 700, textTransform: 'none' },
-  },
-  shape: {
-    borderRadius: 12, // Sharper, technical look
+    fontFamily: '"IBM Plex Sans", "Space Grotesk", sans-serif',
+    h1: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 700, letterSpacing: '-0.02em' },
+    h2: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 700, letterSpacing: '-0.02em' },
+    h3: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 700, letterSpacing: '-0.01em' },
+    h4: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 700, letterSpacing: '-0.01em' },
+    h5: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 700 },
+    h6: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 600 },
+    subtitle1: { fontWeight: 500 },
+    subtitle2: { fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' },
+    body1: { lineHeight: 1.6 },
+    body2: { lineHeight: 1.5 },
+    button: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 600, textTransform: 'none' },
   },
   components: {
     MuiCssBaseline: {
       styleOverrides: {
         body: {
-          backgroundColor: OLED_BLACK,
-          scrollbarWidth: 'none',
-          '&::-webkit-scrollbar': { display: 'none' },
+          backgroundColor: '#020617',
+          backgroundImage:
+            'radial-gradient(1200px circle at 15% -10%, rgba(14,165,233,0.18), transparent 55%), radial-gradient(900px circle at 110% 110%, rgba(249,115,22,0.14), transparent 50%)',
         },
       },
     },
@@ -84,82 +66,52 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          backgroundColor: GLASS_BG,
-          backdropFilter: `blur(${GLASS_BLUR})`,
-          border: `1px solid ${GLASS_BORDER}`,
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: 8, // Technical, not pill
-          padding: '10px 24px',
-          fontSize: '0.95rem',
-          transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
-        },
-        containedPrimary: {
-          background: NEON_CYAN,
-          color: OLED_BLACK,
-          boxShadow: NEON_GLOW(NEON_CYAN),
-          '&:hover': {
-            background: '#5FFFFF',
-            boxShadow: `0 0 30px ${alpha(NEON_CYAN, 0.6)}, 0 0 60px ${alpha(NEON_CYAN, 0.3)}`,
-            transform: 'translateY(-2px)',
-          },
-        },
-        containedSecondary: {
-          background: NEON_MAGENTA,
-          color: '#FFFFFF',
-          boxShadow: NEON_GLOW(NEON_MAGENTA),
-          '&:hover': {
-            background: '#FF4D79',
-            boxShadow: `0 0 30px ${alpha(NEON_MAGENTA, 0.6)}, 0 0 60px ${alpha(NEON_MAGENTA, 0.3)}`,
-            transform: 'translateY(-2px)',
-          },
-        },
-        outlined: {
-          borderColor: 'rgba(255, 255, 255, 0.2)',
-          '&:hover': {
-            borderColor: '#FFFFFF',
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          },
+          backgroundColor: PAPER_GLASS,
+          backdropFilter: 'blur(18px)',
+          border: `1px solid ${alpha('#94A3B8', 0.18)}`,
         },
       },
     },
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 32,
-          backgroundColor: 'rgba(5, 5, 5, 0.6)', // Slightly darker for cards
-          backdropFilter: 'blur(40px)',
-          border: '1px solid rgba(255, 255, 255, 0.05)',
+          backgroundColor: alpha(BRAND_NAVY, 0.86),
+          border: `1px solid ${alpha('#94A3B8', 0.18)}`,
+          borderRadius: 20,
         },
       },
     },
-    MuiChip: {
+    MuiButton: {
       styleOverrides: {
         root: {
-          backdropFilter: 'blur(10px)',
-          fontWeight: 700,
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: 12,
+          paddingInline: 16,
+          paddingBlock: 9,
         },
-        filled: {
-          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        containedPrimary: {
+          background: `linear-gradient(135deg, ${BRAND_SKY} 0%, #2563EB 100%)`,
+          boxShadow: `0 10px 24px ${alpha(BRAND_SKY, 0.28)}`,
         },
-        outlined: {
-          borderColor: 'rgba(255, 255, 255, 0.2)',
+        containedSecondary: {
+          background: `linear-gradient(135deg, ${BRAND_CORAL} 0%, #DC2626 100%)`,
+          boxShadow: `0 10px 24px ${alpha(BRAND_CORAL, 0.25)}`,
         },
       },
     },
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          backgroundColor: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(40px)',
-          border: 'none',
-          boxShadow: '0 0 50px rgba(0,0,0,0.8)',
+          backgroundColor: alpha(BRAND_NAVY, 0.92),
+          backdropFilter: 'blur(20px)',
+          border: `1px solid ${alpha(BRAND_STEEL, 0.8)}`,
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          borderRadius: 10,
+          fontWeight: 600,
         },
       },
     },

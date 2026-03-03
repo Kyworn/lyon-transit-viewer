@@ -1,9 +1,10 @@
 /**
  * Creates a modern, neon-style SVG marker for stops
- * @param type - The type of stop (bus, tram, metro, funicular)
+ * @param type - The type of stop (bus, tram, metro, funicular, fluvial)
+ * @param colorOverride - Optional color override (typically selected line color)
  * @returns SVG string as data URL
  */
-export const createStopMarker = (type: string): string => {
+export const createStopMarker = (type: string, colorOverride?: string): string => {
   const size = 64; // Increased from 32
   const center = size / 2;
 
@@ -27,12 +28,21 @@ export const createStopMarker = (type: string): string => {
       innerRadius = 10;
       outerRadius = 18;
       break;
+    case 'fluvial':
+      color = '#00a3a6'; // Navigone teal
+      innerRadius = 10;
+      outerRadius = 18;
+      break;
     case 'bus':
     default:
       color = '#FFFFFF';
       innerRadius = 6;
       outerRadius = 12;
       break;
+  }
+
+  if (colorOverride && colorOverride.trim()) {
+    color = colorOverride.trim();
   }
 
   const svg = `

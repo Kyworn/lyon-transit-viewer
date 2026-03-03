@@ -14,14 +14,14 @@ import { Box, CircularProgress, Alert } from '@mui/material';
 import { createVehicleMarker, loadSVGMarker } from '../utils/createVehicleMarker';
 import { createStopMarker, loadStopMarker } from '../utils/createStopMarker';
 
-if (process.env.REACT_APP_MAPBOX_TOKEN) {
-  mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
-} else {
-  console.error('Mapbox access token is not set!');
+const mapboxToken = process.env.REACT_APP_MAPBOX_TOKEN;
+if (mapboxToken) {
+  mapboxgl.accessToken = mapboxToken;
 }
 
 function MapComponent() {
   const map = useRef<MapboxMap | null>(null);
+  const hasMapboxToken = Boolean(mapboxToken);
 
   const zoom = useSelectionStore((state) => state.zoom);
   const setZoom = useSelectionStore((state) => state.setZoom);
@@ -44,16 +44,18 @@ function MapComponent() {
   const currentJourneyStep = useSelectionStore((state) => state.currentJourneyStep);
   const selectedItem = useSelectionStore((state) => state.selectedItem);
 
-  const { data: stops, isLoading: isLoadingStops, error: errorStops } = useStops(true);
-  const { data: lines, isLoading: isLoadingLines, error: errorLines } = useLines();
+  const { data: stops, isLoading: isLoadingStops, error: errorStops } = useStops(Boolean(selectedLine));
+  const { data: lines, isLoading: isLoadingLines, error: errorLines } = useLines({ includeTrace: true });
   const { data: lineIcons, isLoading: isLoadingLineIcons, error: errorLineIcons } = useLineIcons();
   const { data: pricingZones } = usePricingZones();
   const setSelectedItem = useSelectionStore((state) => state.setSelectedItem);
-  const { data: vehicles, isLoading: isLoadingVehicles, error: errorVehicles, refetch: refetchVehicles } = useVehicles(selectedLine?.line_sort_code, selectedLine?.direction, !!selectedLine);
-
-  useEffect(() => {
-    refetchVehicles();
-  }, [selectedLine, refetchVehicles]);
+  const { data: vehicles, isLoading: isLoadingVehicles, error: errorVehicles } = useVehicles(
+    selectedLine?.line_sort_code,
+    selectedLine?.line_code,
+    selectedLine?.direction,
+    true,
+    selectedLine?.destination_name
+  );
 
   // Center map when centerCoordinates changes (programmatically)
   useEffect(() => {
@@ -73,8 +75,12 @@ function MapComponent() {
   }, [centerCoordinates]);
 
   const mapContainerRef = useCallback((node: HTMLDivElement) => {
+    if (!hasMapboxToken) return;
     if (node !== null && !map.current) {
       try {
+        if (node.childElementCount > 0) {
+          node.innerHTML = '';
+        }
         map.current = new mapboxgl.Map({
           container: node,
           style: 'mapbox://styles/mapbox/dark-v11',
@@ -107,11 +113,37 @@ function MapComponent() {
         map.current.on('styleimagemissing', (e) => {
           const id = e.id;
           if (loadedIconsRef.current.has(id)) return;
-          const width = 32, height = 32, data = new Uint8Array(width * height * 4);
-          let r = 255, g = 0, b = 0;
-          if (id.includes('yellow')) { r = 255; g = 255; b = 0; }
-          for (let i = 0; i < data.length; i += 4) { data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255; }
-          if (map.current) map.current.addImage(id, { width, height, data }, { sdf: false });
+          const stopTypeByIcon: Record<string, 'bus' | 'tram' | 'metro' | 'funicular' | 'fluvial'> = {
+            'bus-stop': 'bus',
+            'tram-stop': 'tram',
+            'metro-stop': 'metro',
+            'funi-stop': 'funicular',
+            'funicular-stop': 'funicular',
+            'fluvial-stop': 'fluvial',
+          };
+
+          const stopType = stopTypeByIcon[id];
+          if (stopType) {
+            const markerSvg = createStopMarker(stopType);
+            loadStopMarker(markerSvg)
+              .then((image: HTMLImageElement) => {
+                if (map.current && !map.current.hasImage(id)) {
+                  map.current.addImage(id, image);
+                  loadedIconsRef.current.add(id);
+                }
+              })
+              .catch(() => {});
+            return;
+          }
+
+          // Last-resort transparent pixel to avoid noisy red-square fallback.
+          const width = 1;
+          const height = 1;
+          const data = new Uint8Array([0, 0, 0, 0]);
+          if (map.current && !map.current.hasImage(id)) {
+            map.current.addImage(id, { width, height, data }, { sdf: false });
+            loadedIconsRef.current.add(id);
+          }
         });
 
         map.current.on('load', () => {
@@ -162,12 +194,22 @@ function MapComponent() {
           );
 
           // --- PROJECT NEON: LOAD CUSTOM STOP MARKERS ---
-          const stopTypes = ['bus', 'tram', 'metro', 'funicular'];
-          const iconPromises = stopTypes.map(type => {
+          const stopIcons: Array<{ iconId: string; type: 'bus' | 'tram' | 'metro' | 'funicular' | 'fluvial' }> = [
+            { iconId: 'bus-stop', type: 'bus' },
+            { iconId: 'tram-stop', type: 'tram' },
+            { iconId: 'metro-stop', type: 'metro' },
+            { iconId: 'funi-stop', type: 'funicular' },
+            { iconId: 'fluvial-stop', type: 'fluvial' },
+          ];
+          const iconPromises = stopIcons.map(({ iconId, type }) => {
             const markerSvg = createStopMarker(type);
             return loadStopMarker(markerSvg).then((image: HTMLImageElement) => {
               if (mapInstance) {
-                mapInstance.addImage(`${type}-stop`, image);
+                if (mapInstance.hasImage(iconId)) {
+                  mapInstance.removeImage(iconId);
+                }
+                mapInstance.addImage(iconId, image);
+                loadedIconsRef.current.add(iconId);
               }
             });
           });
@@ -222,7 +264,7 @@ function MapComponent() {
         console.error('Error initializing Mapbox map:', error);
       }
     }
-  }, [lng, lat, zoom]);
+  }, [hasMapboxToken, lng, lat, zoom]);
 
   useEffect(() => {
     return () => {
@@ -236,46 +278,134 @@ function MapComponent() {
   useEffect(() => {
     if (!map.current || !lines || !stopIconsLoaded) return;
     const mapInstance = map.current;
+    const normalizeMapColor = (value?: string | null) => {
+      const raw = (value || '').trim();
+      if (!raw) return '';
+      if (/^rgb(a?)\(/i.test(raw)) return raw;
+      if (raw.startsWith('#')) return raw;
+      if (/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(raw)) return `#${raw}`;
+      return '';
+    };
 
-    const linesByCode = new Map(lines.map((line) => [line.line_sort_code, line]));
+    const normalizeCode = (value?: string | null) =>
+      (value || '')
+        .toString()
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .replace(/^NAVI/, 'NAV');
+    const addCodeAlias = (set: Set<string>, code?: string | null) => {
+      const normalized = normalizeCode(code);
+      if (!normalized) return;
+      set.add(normalized);
+      if (normalized.startsWith('NAV')) set.add(normalized.replace(/^NAV/, 'NAVI'));
+      if (normalized.startsWith('NAVI')) set.add(normalized.replace(/^NAVI/, 'NAV'));
+    };
+    const extractLineCode = (service: string) => {
+      const raw = (service || '').trim();
+      if (!raw) return '';
+      const leading = raw.split(':')[0]?.trim() || '';
+      if (/^(?:[ABCD]|RX|REX|[A-Z]{1,6}\d{0,3}[A-Z]?|\d{1,4})$/i.test(leading)) {
+        return normalizeCode(leading);
+      }
+      const match = raw.match(/(?:^|::)([ABCD]|RX|REX|[A-Z]{1,6}\d{0,3}[A-Z]?|\d{1,4})(?::|$)/i);
+      return normalizeCode(match?.[1] || '');
+    };
+    const normalizeDirection = (value?: string | null) => {
+      const raw = (value || '').toString().trim().toUpperCase();
+      if (raw === 'A' || raw === 'ALLER' || raw === 'OUTBOUND') return 'A';
+      if (raw === 'R' || raw === 'RETOUR' || raw === 'INBOUND') return 'R';
+      return '';
+    };
+    const extractDirection = (service: string) => {
+      const raw = (service || '').trim();
+      if (!raw) return '';
+      const tokens = raw.split(':').map((v) => v.trim()).filter(Boolean);
+      const last = tokens[tokens.length - 1] || '';
+      return normalizeDirection(last);
+    };
+
+    const linesByCode = new Map(lines.map((line) => [normalizeCode(line.line_sort_code), line]));
+    const selectedLineColor = normalizeMapColor(
+      (selectedLine as any)?.display_color || selectedLine?.color || null
+    );
+    const stopIcons: Array<{ iconId: string; type: 'bus' | 'tram' | 'metro' | 'funicular' | 'fluvial' }> = [
+      { iconId: 'bus-stop', type: 'bus' },
+      { iconId: 'tram-stop', type: 'tram' },
+      { iconId: 'metro-stop', type: 'metro' },
+      { iconId: 'funi-stop', type: 'funicular' },
+      { iconId: 'fluvial-stop', type: 'fluvial' },
+    ];
+
+    // Repaint stop icons to selected line color so metro/funi stops inherit line color too.
+    stopIcons.forEach(({ iconId, type }) => {
+      const markerSvg = createStopMarker(type, selectedLineColor || undefined);
+      loadStopMarker(markerSvg)
+        .then((image: HTMLImageElement) => {
+          if (!map.current) return;
+          if (map.current.hasImage(iconId)) {
+            map.current.updateImage(iconId, image);
+          } else {
+            map.current.addImage(iconId, image);
+            loadedIconsRef.current.add(iconId);
+          }
+        })
+        .catch(() => {});
+    });
 
     const stopsToDisplay = selectedLine && stops
-      ? stops.filter((stop: Stop) => {
-        if (!stop.service_info || stop.service_info.trim() === '') return false;
-        const services = stop.service_info.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      ? (() => {
+        const candidateCodes = new Set<string>();
+        addCodeAlias(candidateCodes, selectedLine.line_sort_code);
+        addCodeAlias(candidateCodes, selectedLine.line_code);
+
+        const parseServices = (stop: Stop) =>
+          (stop.service_info || '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0)
+            .map((service) => {
+              return {
+                lineCode: extractLineCode(service),
+                direction: extractDirection(service),
+              };
+            });
+
+        const byLine = stops.filter((stop: Stop) => {
+          const services = parseServices(stop);
+          return services.some((s) => candidateCodes.has(s.lineCode));
+        });
 
         if (selectedLine.direction === 'Aller' || selectedLine.direction === 'Retour') {
           const directionCode = selectedLine.direction === 'Aller' ? 'A' : 'R';
-          return services.some(service => {
-            const parts = service.split(':');
-            if (parts.length !== 2) return false; // Must have exactly lineCode:direction format
-            const [lineCode, direction] = parts.map(p => p.trim());
-            if (!lineCode || !direction) return false; // Both must be non-empty
-            return lineCode === selectedLine.line_sort_code && direction === directionCode;
+          const strict = byLine.filter((stop: Stop) => {
+            const services = parseServices(stop);
+            return services.some((s) => candidateCodes.has(s.lineCode) && s.direction === directionCode);
           });
-        } else {
-          return services.some(service => {
-            const parts = service.split(':');
-            if (parts.length < 1) return false;
-            const lineCode = parts[0].trim();
-            if (!lineCode) return false; // Must be non-empty
-            return lineCode === selectedLine.line_sort_code;
+          const hasDirectionData = byLine.some((stop: Stop) => {
+            const services = parseServices(stop);
+            return services.some((s) => candidateCodes.has(s.lineCode) && (s.direction === 'A' || s.direction === 'R'));
           });
+          // Fallback only when direction metadata is absent.
+          return strict.length > 0 ? strict : (hasDirectionData ? [] : byLine);
         }
-      })
-      : []; // No stops on initial load
+
+        return byLine;
+      })()
+      : [];
 
     const stopsGeoJSON: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
       features: stopsToDisplay.map((stop: Stop) => {
-        const services = stop.service_info.split(',');
-        const firstLineCode = services.length > 0 ? services[0].split(':')[0] : null;
+        const services = (stop.service_info || '').split(',').map((s) => s.trim()).filter(Boolean);
+        const firstLineCode = services.length > 0 ? extractLineCode(services[0]) : null;
         const line = firstLineCode ? linesByCode.get(firstLineCode) : null;
         const category = line ? line.category : 'bus'; // Default to bus
+        const lineColor = selectedLineColor || normalizeMapColor(line?.color || '');
 
         return {
           type: 'Feature',
-          properties: { ...stop, type: 'stop', category: category },
+          properties: { ...stop, type: 'stop', category, lineColor },
           geometry: {
             type: 'Point',
             coordinates: [stop.longitude, stop.latitude]
@@ -290,6 +420,34 @@ function MapComponent() {
         source.setData(stopsGeoJSON);
       } else {
         mapInstance.addSource('stops-source', { type: 'geojson', data: stopsGeoJSON });
+        const beforeLayerForColor = mapInstance.getLayer('vehicles-layer') ? 'vehicles-layer' : undefined;
+        mapInstance.addLayer({
+          id: 'stops-color-layer',
+          type: 'circle',
+          source: 'stops-source',
+          paint: {
+            'circle-radius': 10,
+            'circle-color': [
+              'coalesce',
+              ['get', 'lineColor'],
+              [
+                'match',
+                ['get', 'category'],
+                'bus', '#2dd4bf',
+                'tram', '#fb923c',
+                'metro', '#60a5fa',
+                'funicular', '#c084fc',
+                'fluvial', '#00a3a6',
+                '#64748b'
+              ]
+            ],
+            'circle-opacity': 0.9,
+            'circle-stroke-width': 1.5,
+            'circle-stroke-color': '#0b1220',
+            'circle-stroke-opacity': 0.95
+          }
+        }, beforeLayerForColor);
+
         // Add stops layer before vehicles layer if it exists, ensuring stops are above lines but below vehicles
         const beforeLayer = mapInstance.getLayer('vehicles-layer') ? 'vehicles-layer' : undefined;
         mapInstance.addLayer({
@@ -304,6 +462,7 @@ function MapComponent() {
               'tram', 'tram-stop',
               'metro', 'metro-stop',
               'funicular', 'funi-stop',
+              'fluvial', 'fluvial-stop',
               'bus-stop' // fallback
             ],
             'icon-size': 0.75, // Render at 48px (64px * 0.75)
@@ -313,6 +472,7 @@ function MapComponent() {
 
         mapInstance.on('click', 'stops-layer', (e) => {
           if (e.features && e.features.length > 0) {
+            setSelectedItem(null);
             const clickedStop = e.features[0].properties as Stop;
             setModalStop(clickedStop);
             if (e.point) {
@@ -431,6 +591,8 @@ function MapComponent() {
 
           mapInstance.on('click', 'vehicles-layer', (e) => {
             if (e.features && e.features.length > 0) {
+              setModalStop(null);
+              setModalAnchorPosition(null);
               setSelectedItem(e.features[0].properties);
             }
           });
@@ -498,7 +660,7 @@ function MapComponent() {
       ? [] // Hide all lines when viewing an itinerary
       : selectedLine
         ? lines.filter((line: Line) => line.id === selectedLine.id)
-        : lines.filter((line: Line) => ['metro', 'funicular', 'tram'].includes(line.category)); // Show ONLY heavy rail by default to prevent lag
+        : lines.filter((line: Line) => ['metro', 'funicular', 'tram', 'fluvial'].includes(line.category)); // Show heavy rail + fluvial by default
 
     const linesGeoJSON: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
@@ -511,6 +673,7 @@ function MapComponent() {
         if (line.category === 'metro') weight = 4;
         else if (line.category === 'tram') weight = 3;
         else if (line.category === 'funicular') weight = 3;
+        else if (line.category === 'fluvial') weight = 3;
         else if (line.category.includes('bus')) weight = 1.5; // Major bus lines
 
         return {
@@ -583,7 +746,7 @@ function MapComponent() {
 
     const zonesGeoJSON: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
-      features: pricingZones.map(zone => ({
+      features: pricingZones.map((zone: { name: string; geojson: unknown }) => ({
         type: 'Feature',
         properties: { name: zone.name },
         geometry: zone.geojson as any
@@ -878,7 +1041,7 @@ function MapComponent() {
     }
   }, [selectedItem]);
 
-  const anyError = errorStops || errorVehicles || errorLines || errorLineIcons;
+  const anyError = (!hasMapboxToken && new Error('missing_mapbox_token')) || errorStops || errorVehicles || errorLines || errorLineIcons;
   const anyLoading = selectedLine
     ? isLoadingStops || isLoadingVehicles || isLoadingLines || isLoadingLineIcons
     : isLoadingLines || isLoadingLineIcons;
@@ -910,7 +1073,7 @@ function MapComponent() {
       )}
       {anyError && (
         <Alert severity="error" sx={{ position: 'absolute', top: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 1500 }}>
-          Erreur lors du chargement des données.
+          {!hasMapboxToken ? 'Token Mapbox manquant. Vérifie REACT_APP_MAPBOX_TOKEN dans .env puis redémarre le frontend.' : 'Erreur lors du chargement des données.'}
         </Alert>
       )}
       <Box ref={mapContainerRef} sx={{ width: '100%', height: '100%', zIndex: 0 }} />
@@ -919,6 +1082,8 @@ function MapComponent() {
         onClose={() => { setModalAnchorPosition(null); setModalStop(null); }}
         lineIcons={lineIcons}
         anchorPosition={modalAnchorPosition}
+        allStops={stops || []}
+        onSelectStop={(nextStop) => setModalStop(nextStop)}
       />
     </Box>
   );

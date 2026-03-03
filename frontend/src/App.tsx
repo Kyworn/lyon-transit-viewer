@@ -61,6 +61,7 @@ function App() {
 
   const selectedItem = useSelectionStore((state) => state.selectedItem);
   const selectedLine = useSelectionStore((state) => state.selectedLine);
+  const setSelectedItem = useSelectionStore((state) => state.setSelectedItem);
   const { data: alerts } = useAlerts();
   const alertCount = alerts?.length || 0;
 
@@ -105,8 +106,39 @@ function App() {
     }));
   };
 
+  const closeAllPanels = () => {
+    setSidebarOpen(false);
+    setAlertsPanelOpen(false);
+    setDashboardOpen(false);
+    setRoutePlannerOpen(false);
+    setAdminDashboardOpen(false);
+    setSelectedItem(null);
+  };
+
   return (
-    <Box sx={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', bgcolor: 'background.default' }}>
+    <Box sx={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', bgcolor: 'background.default', position: 'relative' }}>
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          background:
+            'radial-gradient(900px circle at 5% 10%, rgba(14,165,233,0.18), transparent 50%), radial-gradient(700px circle at 100% 95%, rgba(249,115,22,0.16), transparent 48%)',
+          zIndex: 0,
+        }}
+      />
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          backgroundImage:
+            'linear-gradient(rgba(148,163,184,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.05) 1px, transparent 1px)',
+          backgroundSize: '32px 32px',
+          maskImage: 'radial-gradient(circle at center, black 30%, transparent 92%)',
+          zIndex: 0,
+        }}
+      />
 
       {/* 1. FLOATING STATUS (Dynamic Island) */}
       <FloatingStatus />
@@ -148,7 +180,7 @@ function App() {
             zIndex: Z_INDEX.sidebar,
             pointerEvents: 'none', // Let clicks pass through the container
             height: '100vh',
-            width: '450px',
+            width: 'min(460px, 44vw)',
           }}
         >
           <ModernSidebar
@@ -168,6 +200,7 @@ function App() {
           width: '100%',
           height: '100vh',
           overflow: 'hidden',
+          zIndex: 1,
         }}
       >
         {/* Map is now full screen behind everything */}
@@ -196,10 +229,26 @@ function App() {
 
       {/* 4. FLOATING DOCK (Bottom Nav) */}
       <FloatingDock
-        onToggleDashboard={() => setDashboardOpen(!dashboardOpen)}
-        onToggleAlerts={() => setAlertsPanelOpen(!alertsPanelOpen)}
-        onToggleRoutes={() => setRoutePlannerOpen(!routePlannerOpen)}
-        onToggleSearch={() => setSidebarOpen(!sidebarOpen)}
+        onToggleDashboard={() => {
+          const next = !dashboardOpen;
+          closeAllPanels();
+          setDashboardOpen(next);
+        }}
+        onToggleAlerts={() => {
+          const next = !alertsPanelOpen;
+          closeAllPanels();
+          setAlertsPanelOpen(next);
+        }}
+        onToggleRoutes={() => {
+          const next = !routePlannerOpen;
+          closeAllPanels();
+          setRoutePlannerOpen(next);
+        }}
+        onToggleSearch={() => {
+          const next = !sidebarOpen;
+          closeAllPanels();
+          setSidebarOpen(next);
+        }}
       />
 
       {/* 5. PANELS & DRAWERS */}
@@ -208,62 +257,70 @@ function App() {
       {selectedItem && <SelectedItemDetails />}
 
       {/* Alerts Panel */}
-      <AlertsPanel
-        open={alertsPanelOpen}
-        onClose={() => setAlertsPanelOpen(false)}
-      />
+      {alertsPanelOpen && (
+        <AlertsPanel
+          open={alertsPanelOpen}
+          onClose={() => setAlertsPanelOpen(false)}
+        />
+      )}
 
       {/* Route Planner */}
-      <RoutePlanner
-        open={routePlannerOpen}
-        onClose={() => setRoutePlannerOpen(false)}
-      />
+      {routePlannerOpen && (
+        <RoutePlanner
+          open={routePlannerOpen}
+          onClose={() => setRoutePlannerOpen(false)}
+        />
+      )}
 
       {/* Dashboard Drawer */}
-      <Drawer
-        variant="temporary"
-        anchor="bottom"
-        open={dashboardOpen}
-        onClose={() => setDashboardOpen(false)}
-        sx={{
-          '& .MuiDrawer-paper': {
-            height: isMobile ? '90vh' : (isTablet ? '70vh' : '50vh'),
-            borderRadius: isMobile ? 0 : '32px 32px 0 0',
-            background: 'rgba(5, 5, 5, 0.85)',
-            backdropFilter: 'blur(40px)',
-            boxShadow: `0 -20px 50px rgba(0,0,0,0.5)`,
-            borderTop: `1px solid ${alpha(theme.palette.common.white, 0.1)}`,
-            zIndex: Z_INDEX.drawer,
-          },
-        }}
-        transitionDuration={500}
-      >
-        <Slide direction="up" in={dashboardOpen} timeout={500}>
-          <Box>
-            <DashboardStats />
-          </Box>
-        </Slide>
-      </Drawer>
+      {dashboardOpen && (
+        <Drawer
+          variant="temporary"
+          anchor="bottom"
+          open={dashboardOpen}
+          onClose={() => setDashboardOpen(false)}
+          sx={{
+            '& .MuiDrawer-paper': {
+              height: isMobile ? '90vh' : (isTablet ? '70vh' : '50vh'),
+              borderRadius: isMobile ? 0 : '32px 32px 0 0',
+              background: 'rgba(5, 5, 5, 0.85)',
+              backdropFilter: 'blur(40px)',
+              boxShadow: `0 -20px 50px rgba(0,0,0,0.5)`,
+              borderTop: `1px solid ${alpha(theme.palette.common.white, 0.1)}`,
+              zIndex: Z_INDEX.drawer,
+            },
+          }}
+          transitionDuration={500}
+        >
+          <Slide direction="up" in={dashboardOpen} timeout={500}>
+            <Box>
+              <DashboardStats />
+            </Box>
+          </Slide>
+        </Drawer>
+      )}
 
       {/* Admin Dashboard Drawer */}
-      <Drawer
-        variant="temporary"
-        anchor="top"
-        open={adminDashboardOpen}
-        onClose={() => setAdminDashboardOpen(false)}
-        sx={{
-          '& .MuiDrawer-paper': {
-            height: '90vh',
-            background: 'rgba(5, 5, 5, 0.95)',
-            backdropFilter: 'blur(40px)',
-            overflowY: 'auto',
-            zIndex: Z_INDEX.drawer,
-          },
-        }}
-        transitionDuration={400}
-      >
-        <AdminDashboard onClose={() => setAdminDashboardOpen(false)} />
-      </Drawer>
+      {adminDashboardOpen && (
+        <Drawer
+          variant="temporary"
+          anchor="top"
+          open={adminDashboardOpen}
+          onClose={() => setAdminDashboardOpen(false)}
+          sx={{
+            '& .MuiDrawer-paper': {
+              height: '90vh',
+              background: 'rgba(5, 5, 5, 0.95)',
+              backdropFilter: 'blur(40px)',
+              overflowY: 'auto',
+              zIndex: Z_INDEX.drawer,
+            },
+          }}
+          transitionDuration={400}
+        >
+          <AdminDashboard onClose={() => setAdminDashboardOpen(false)} />
+        </Drawer>
+      )}
 
       {/* Line Selected Notification */}
       <Snackbar

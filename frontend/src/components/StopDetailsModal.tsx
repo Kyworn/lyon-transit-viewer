@@ -18,6 +18,7 @@ import {
   CardContent,
   Fade,
   SwipeableDrawer,
+  Avatar,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AccessibleIcon from '@mui/icons-material/Accessible';
@@ -28,22 +29,34 @@ import MyLocationIcon from '@mui/icons-material/MyLocation';
 import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { Stop, LineIcon } from '../types';
-import { useNextPassages } from '../hooks/useNextPassages';
+import { useNextPassagesByLine } from '../hooks/useNextPassages';
+import { useLines } from '../hooks/useLines';
 import { useSelectionStore } from '../stores/selectionStore';
-import { motion, AnimatePresence } from 'framer-motion';
 
 interface StopDetailsModalProps {
   stop: Stop | null;
   onClose: () => void;
   lineIcons: LineIcon[] | null | undefined;
   anchorPosition: { top: number; left: number } | null;
+  allStops?: Stop[];
+  onSelectStop?: (stop: Stop) => void;
 }
 
-const StopDetailsModal: React.FC<StopDetailsModalProps> = ({ stop, onClose, lineIcons }) => {
+const StopDetailsModal: React.FC<StopDetailsModalProps> = ({ stop, onClose, lineIcons, allStops, onSelectStop }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { data: nextPassages, isLoading: isLoadingPassages } = useNextPassages(stop?.id || null, !!stop);
+  const selectedLine = useSelectionStore((state) => state.selectedLine);
+  const { data: nextPassages, isLoading: isLoadingPassages } = useNextPassagesByLine(
+    stop?.id || null,
+    !!stop,
+    selectedLine?.line_sort_code,
+    selectedLine?.line_code,
+    selectedLine?.direction,
+    selectedLine?.destination_name
+  );
+  const { data: lines } = useLines({ includeTrace: false });
   const setCenterCoordinates = useSelectionStore((state) => state.setCenterCoordinates);
+  const setSelectedLine = useSelectionStore((state) => state.setSelectedLine);
 
   const formatDuration = (duration: string) => {
     if (!duration || duration === 'PT0S') return "À l'approche";
@@ -63,6 +76,87 @@ const StopDetailsModal: React.FC<StopDetailsModalProps> = ({ stop, onClose, line
     return sign === '-' ? `Avance ${formatted.trim()}` : `${formatted.trim()}`;
   };
 
+  const formatDestinationName = (value?: string | null) => {
+    const raw = (value || '').trim();
+    if (!raw) return 'Direction inconnue';
+    if (raw.startsWith('ActIV:StopArea:')) return 'Direction en cours';
+    return raw;
+  };
+  const formatEtaMinutes = (iso?: string | null) => {
+    if (!iso) return "À l'approche";
+    const ts = new Date(iso).getTime();
+    if (!Number.isFinite(ts)) return "À l'approche";
+    const deltaMs = ts - Date.now();
+    if (deltaMs <= 30_000) return "Imminent";
+    return `${Math.max(1, Math.ceil(deltaMs / 60000))} min`;
+  };
+
+  const canonicalLineCode = (value?: string | null) =>
+    (value || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .replace(/^NAVI/, 'NAV')
+      .trim();
+  const normalizeText = (value?: string | null) =>
+    (value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+  const extractLineCode = (service: string) => {
+    const raw = (service || '').trim();
+    if (!raw) return '';
+    const leading = raw.split(':')[0]?.trim() || '';
+    if (/^(?:[ABCD]|RX|REX|[A-Z]{1,6}\d{0,3}[A-Z]?|\d{1,4})$/i.test(leading)) {
+      return canonicalLineCode(leading);
+    }
+    const match = raw.match(/(?:^|::)([ABCD]|RX|REX|[A-Z]{1,6}\d{0,3}[A-Z]?|\d{1,4})(?::|$)/i);
+    return canonicalLineCode(match?.[1] || '');
+  };
+  const extractDirectionCode = (service: string) => {
+    const parts = (service || '').split(':').map((p) => p.trim()).filter(Boolean);
+    const last = (parts[parts.length - 1] || '').toUpperCase();
+    if (last === 'A' || last === 'ALLER' || last === 'OUTBOUND') return 'A';
+    if (last === 'R' || last === 'RETOUR' || last === 'INBOUND') return 'R';
+    return '';
+  };
+  const stopHasLineDirection = (candidate: Stop, lineCode: string, directionCode: string) => {
+    const services = (candidate.service_info || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return services.some((svc) => {
+      const svcLine = extractLineCode(svc);
+      const svcDir = extractDirectionCode(svc);
+      return svcLine === lineCode && svcDir === directionCode;
+    });
+  };
+  const findOppositeStopForDirection = (targetDirection: 'Aller' | 'Retour', lineCode: string) => {
+    if (!stop || !allStops || allStops.length === 0) return null;
+    const targetDirCode = targetDirection === 'Aller' ? 'A' : 'R';
+    if (stopHasLineDirection(stop, lineCode, targetDirCode)) return null;
+
+    const currentName = normalizeText(stop.name);
+    const siblings = allStops.filter((s) => s.id !== stop.id && normalizeText(s.name) === currentName);
+    const sameNameMatch = siblings.find((s) => stopHasLineDirection(s, lineCode, targetDirCode));
+    if (sameNameMatch) return sameNameMatch;
+
+    const inTown = allStops.filter((s) => (s.municipality || '') === (stop.municipality || ''));
+    const townMatch = inTown.find((s) => stopHasLineDirection(s, lineCode, targetDirCode));
+    return townMatch || null;
+  };
+  const applyDirection = (direction: 'Aller' | 'Retour') => {
+    const next = direction === 'Aller' ? lineDirections.aller : lineDirections.retour;
+    if (!next) return;
+    setSelectedLine(next);
+
+    const lineCode = canonicalLineCode(next.line_sort_code || next.line_code || selectedLine?.line_sort_code || '');
+    const oppositeStop = findOppositeStopForDirection(direction, lineCode);
+    if (oppositeStop && onSelectStop) {
+      onSelectStop(oppositeStop);
+    }
+  };
+
   // Parse ISO 8601 duration to get delay in minutes
   const parseDurationToMinutes = (duration: string): number => {
     if (!duration || duration === 'PT0S') return 0;
@@ -77,39 +171,48 @@ const StopDetailsModal: React.FC<StopDetailsModalProps> = ({ stop, onClose, line
     return sign === '-' ? -totalMinutes : totalMinutes;
   };
 
-  // Filter passages to only show future ones
-  const futurePassages = useMemo(() => {
+  const displayedPassages = useMemo(() => {
     if (!nextPassages) return [];
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTotalMinutes = currentHour * 60 + currentMinute;
-
-    return nextPassages.filter(passage => {
-      if (!passage.scheduled_arrival_time) return false;
-      const [hours, minutes] = passage.scheduled_arrival_time.split(':').map(Number);
-      const scheduledMinutes = hours * 60 + minutes;
-      const delayMinutes = parseDurationToMinutes(passage.delay || 'PT0S');
-      const actualArrivalMinutes = scheduledMinutes + delayMinutes;
-
-      // Handle midnight crossing roughly
-      if (actualArrivalMinutes < currentTotalMinutes && (currentTotalMinutes - actualArrivalMinutes) > 180) {
-        return true; // Probably next day
-      }
-
-      return actualArrivalMinutes >= currentTotalMinutes;
-    }).slice(0, 5);
+    const now = Date.now();
+    const upcoming = nextPassages.filter((passage) => {
+      if (!passage.expected_arrival_time) return true;
+      const t = new Date(passage.expected_arrival_time).getTime();
+      return Number.isFinite(t) ? t >= now - 60_000 : true;
+    });
+    return (upcoming.length > 0 ? upcoming : nextPassages).slice(0, 5);
   }, [nextPassages]);
 
-  // Get unique line codes
-  const uniqueLines = useMemo(() => {
+  const servingLines = useMemo(() => {
     if (!stop?.service_info) return [];
-    const servingLines = stop.service_info.split(',').map(service => {
-      const [lineCode] = service.split(':');
-      return lineCode;
+    const byCode = new Map<string, string>();
+    stop.service_info
+      .split(',')
+      .map((service) => service.trim())
+      .filter(Boolean)
+      .forEach((rawService) => {
+        const code = extractLineCode(rawService);
+        if (code && !byCode.has(code)) byCode.set(code, code);
+      });
+
+    return Array.from(byCode.entries()).map(([canonicalCode, displayCode]) => {
+      const line = lines?.find((l) => canonicalLineCode(l.line_sort_code) === canonicalCode);
+      return {
+        code: displayCode,
+        canonicalCode,
+        color: line?.color || null,
+        destination: line?.destination_name || null,
+      };
     });
-    return Array.from(new Set(servingLines));
-  }, [stop]);
+  }, [stop, lines]);
+
+  const lineDirections = useMemo(() => {
+    if (!selectedLine?.line_sort_code || !lines) return { aller: null as any, retour: null as any };
+    const sameCode = lines.filter((l) => canonicalLineCode(l.line_sort_code) === canonicalLineCode(selectedLine.line_sort_code));
+    return {
+      aller: sameCode.find((l) => (l.direction || '').toLowerCase() === 'aller') || null,
+      retour: sameCode.find((l) => (l.direction || '').toLowerCase() === 'retour') || null,
+    };
+  }, [lines, selectedLine]);
 
   if (!stop) return null;
 
@@ -187,33 +290,62 @@ const StopDetailsModal: React.FC<StopDetailsModalProps> = ({ stop, onClose, line
           Lignes desservies
         </Typography>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 4 }}>
-          {uniqueLines.map((lineCode) => {
-            const icon = lineIcons?.find(li => li.code_ligne === lineCode);
+          {servingLines.map((line) => {
+            const icon = lineIcons?.find(li => canonicalLineCode(li.code_ligne) === line.canonicalCode);
+            const chipBg = line.color
+              ? (line.color.startsWith('#') ? line.color : `#${line.color}`)
+              : alpha(theme.palette.background.paper, 0.7);
             return (
-              <Box
-                key={lineCode}
+              <Chip
+                key={line.code}
+                label={line.code}
+                avatar={
+                  icon ? (
+                    <Avatar
+                      alt=""
+                      src={`/icons/${icon.picto_ligne}`}
+                      sx={{ width: 20, height: 20 }}
+                      imgProps={{ alt: '' }}
+                    />
+                  ) : undefined
+                }
                 sx={{
+                  fontWeight: 800,
+                  bgcolor: chipBg,
+                  color: '#fff',
                   transition: 'transform 0.2s',
-                  '&:hover': { transform: 'scale(1.1)' },
-                  cursor: 'pointer',
-                  p: 0.5,
-                  borderRadius: 1,
-                  bgcolor: alpha(theme.palette.background.paper, 0.5),
+                  '&:hover': { transform: 'scale(1.05)' },
                 }}
-              >
-                {icon ? (
-                  <img
-                    src={`/icons/${icon.picto_ligne}`}
-                    alt={lineCode}
-                    style={{ width: 42, height: 42 }}
-                  />
-                ) : (
-                  <Chip label={lineCode} sx={{ fontWeight: 800 }} />
-                )}
-              </Box>
+              />
             );
           })}
         </Stack>
+
+        {selectedLine && (lineDirections.aller || lineDirections.retour) && (
+          <>
+            <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}>
+              Sens
+            </Typography>
+            <Stack direction="row" spacing={1} sx={{ mb: 3 }}>
+              {lineDirections.aller && (
+                <Chip
+                  label="Aller"
+                  color={(selectedLine.direction || '').toLowerCase() === 'aller' ? 'primary' : 'default'}
+                  variant={(selectedLine.direction || '').toLowerCase() === 'aller' ? 'filled' : 'outlined'}
+                  onClick={() => applyDirection('Aller')}
+                />
+              )}
+              {lineDirections.retour && (
+                <Chip
+                  label="Retour"
+                  color={(selectedLine.direction || '').toLowerCase() === 'retour' ? 'primary' : 'default'}
+                  variant={(selectedLine.direction || '').toLowerCase() === 'retour' ? 'filled' : 'outlined'}
+                  onClick={() => applyDirection('Retour')}
+                />
+              )}
+            </Stack>
+          </>
+        )}
 
         {/* Next Passages Timeline */}
         <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}>
@@ -225,18 +357,12 @@ const StopDetailsModal: React.FC<StopDetailsModalProps> = ({ stop, onClose, line
             <CircularProgress size={32} thickness={4} />
             <Typography variant="caption" sx={{ mt: 2, color: 'text.secondary' }}>Chargement des horaires...</Typography>
           </Stack>
-        ) : futurePassages.length > 0 ? (
+        ) : displayedPassages.length > 0 ? (
           <Stack spacing={2}>
-            <AnimatePresence>
-              {futurePassages.map((passage, index) => {
+              {displayedPassages.map((passage, index) => {
                 const icon = lineIcons?.find(li => li.code_ligne === passage.published_line_name);
                 return (
-                  <motion.div
-                    key={`${passage.published_line_name}-${index}`}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
+                  <Box key={`${passage.published_line_name}-${index}`}>
                     <Card
                       sx={{
                         bgcolor: alpha(theme.palette.background.paper, 0.4),
@@ -262,13 +388,15 @@ const StopDetailsModal: React.FC<StopDetailsModalProps> = ({ stop, onClose, line
 
                         {/* Destination & Time */}
                         <Box sx={{ flexGrow: 1 }}>
-                          <Typography variant="body1" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
-                            {passage.line_destination || 'Terminus'}
-                          </Typography>
+                            <Typography variant="body1" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+                              {formatDestinationName(passage.line_destination)}
+                            </Typography>
                           <Stack direction="row" spacing={1} alignItems="center" mt={0.5}>
                             <AccessTimeIcon sx={{ fontSize: 14, color: theme.palette.primary.main }} />
                             <Typography variant="body2" color="primary.main" fontWeight={600}>
-                              {formatDuration(passage.delay || 'PT0S')}
+                              {passage.expected_arrival_time
+                                ? formatEtaMinutes(passage.expected_arrival_time)
+                                : formatDuration(passage.delay || 'PT0S')}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               • {passage.scheduled_arrival_time?.slice(0, 5)}
@@ -294,10 +422,9 @@ const StopDetailsModal: React.FC<StopDetailsModalProps> = ({ stop, onClose, line
                         />
                       </CardContent>
                     </Card>
-                  </motion.div>
+                  </Box>
                 );
               })}
-            </AnimatePresence>
           </Stack>
         ) : (
           <Box sx={{ p: 3, textAlign: 'center', bgcolor: alpha(theme.palette.background.paper, 0.3), borderRadius: 3 }}>

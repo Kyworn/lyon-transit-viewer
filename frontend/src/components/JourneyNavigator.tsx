@@ -1,19 +1,17 @@
-import React, { useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Box,
-  Paper,
-  IconButton,
-  Typography,
-  Chip,
-  Stack,
-  useTheme,
   alpha,
-  Collapse,
-  List,
-  ListItem,
-  ListItemText,
+  Box,
+  Button,
+  Chip,
+  Divider,
+  IconButton,
+  Paper,
+  Stack,
+  Typography,
   useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -23,8 +21,11 @@ import DirectionsBikeIcon from '@mui/icons-material/DirectionsBike';
 import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
 import TramIcon from '@mui/icons-material/Tram';
 import DirectionsSubwayIcon from '@mui/icons-material/DirectionsSubway';
+import DirectionsBoatIcon from '@mui/icons-material/DirectionsBoat';
+import FunicularIcon from '@mui/icons-material/Cable';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import TimerIcon from '@mui/icons-material/Timer';
+import TransferWithinAStationIcon from '@mui/icons-material/TransferWithinAStation';
+import ExploreIcon from '@mui/icons-material/Explore';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { useSelectionStore } from '../stores/selectionStore';
@@ -42,6 +43,7 @@ interface RouteSection {
     mode: string;
   };
   headsign?: string;
+  waitingTime?: number;
   geojson?: {
     type: string;
     coordinates: number[][];
@@ -59,10 +61,8 @@ const JourneyNavigator: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { selectedJourney, setSelectedJourney, currentJourneyStep, setCurrentJourneyStep } = useSelectionStore();
-  const [showDetails, setShowDetails] = React.useState(false);
-  const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const [expanded, setExpanded] = useState(true);
 
-  // Auto-reset step when journey changes
   useEffect(() => {
     if (selectedJourney && currentJourneyStep === null) {
       setCurrentJourneyStep(0);
@@ -72,19 +72,75 @@ const JourneyNavigator: React.FC = () => {
   if (!selectedJourney || currentJourneyStep === null) return null;
 
   const journey: Journey = selectedJourney;
-  const currentSection: RouteSection = journey.sections[currentJourneyStep];
-  const totalSteps = journey.sections.length;
+  const sections = journey.sections || [];
+  if (sections.length === 0) return null;
 
-  const handlePrevious = () => {
-    if (currentJourneyStep > 0) {
-      setCurrentJourneyStep(currentJourneyStep - 1);
-    }
+  const safeStep = Math.min(Math.max(currentJourneyStep, 0), sections.length - 1);
+  const currentSection = sections[safeStep];
+
+  const totalDurationMs = new Date(journey.arrival).getTime() - new Date(journey.departure).getTime();
+  const publicSteps = sections.filter((s) => s.type === 'public-transport').length;
+  const transfers = Math.max(0, publicSteps - 1);
+  const walkDistanceMeters = sections
+    .filter((s) => s.type === 'walk' && s.geojson?.coordinates?.length)
+    .reduce((sum, s) => sum + calculatePathDistance(s.geojson!.coordinates), 0);
+  const stats = {
+    totalDuration: formatDuration(totalDurationMs),
+    transfers,
+    walkDistance: formatDistance(walkDistanceMeters),
+    totalSteps: sections.length,
   };
 
-  const handleNext = () => {
-    if (currentJourneyStep < totalSteps - 1) {
-      setCurrentJourneyStep(currentJourneyStep + 1);
+  const formatTime = (isoString: string): string =>
+    new Date(isoString).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+  const getModeColor = (section: RouteSection): string => {
+    if (section.type === 'walk') return theme.palette.info.main;
+    if (section.type === 'bike') return theme.palette.success.main;
+    if (section.type === 'waiting') return theme.palette.warning.main;
+    if (section.line?.color) return `#${section.line.color}`;
+    return theme.palette.primary.main;
+  };
+
+  const getModeIcon = (section: RouteSection) => {
+    if (section.type === 'walk') return <DirectionsWalkIcon fontSize="small" />;
+    if (section.type === 'bike') return <DirectionsBikeIcon fontSize="small" />;
+    if (section.type === 'waiting') return <AccessTimeIcon fontSize="small" />;
+
+    const mode = section.line?.mode;
+    if (mode === 'metro') return <DirectionsSubwayIcon fontSize="small" />;
+    if (mode === 'tramway' || mode === 'tram') return <TramIcon fontSize="small" />;
+    if (mode === 'funicular') return <FunicularIcon fontSize="small" />;
+    if (mode === 'boat' || mode === 'fluvial') return <DirectionsBoatIcon fontSize="small" />;
+    return <DirectionsBusIcon fontSize="small" />;
+  };
+
+  const getSectionTitle = (section: RouteSection): string => {
+    if (section.type === 'walk') return 'Marche';
+    if (section.type === 'bike') return 'Velo';
+    if (section.type === 'waiting') return 'Attente';
+    if (section.line?.code) return `Ligne ${section.line.code}`;
+    return 'Transport';
+  };
+
+  const getSectionSubtitle = (section: RouteSection): string => {
+    if (section.type === 'walk') return getWalkingInstructions(section);
+    if (section.type === 'bike') return `Velo vers ${section.to.name}`;
+    if (section.type === 'waiting') return `Attente ${formatDuration((section.waitingTime || 0) * 1000)}`;
+    return `Direction ${section.headsign || section.to.name}`;
+  };
+
+  const getSectionDuration = (section: RouteSection): string => {
+    const dep = new Date(section.departure).getTime();
+    const arr = new Date(section.arrival).getTime();
+    return formatDuration(Math.max(0, arr - dep));
+  };
+
+  const getSectionDistance = (section: RouteSection): string | null => {
+    if ((section.type === 'walk' || section.type === 'bike') && section.geojson?.coordinates?.length) {
+      return formatDistance(calculatePathDistance(section.geojson.coordinates));
     }
+    return null;
   };
 
   const handleClose = () => {
@@ -92,368 +148,206 @@ const JourneyNavigator: React.FC = () => {
     setCurrentJourneyStep(null);
   };
 
-  const getModeIcon = (section: RouteSection) => {
-    if (section.type === 'walk') return <DirectionsWalkIcon />;
-    if (section.type === 'bike') return <DirectionsBikeIcon />;
-    if (section.type === 'waiting') return <TimerIcon />;
-
-    // Public transport - use mode-specific icon
-    if (section.line?.mode === 'metro') return <DirectionsSubwayIcon />;
-    if (section.line?.mode === 'tramway' || section.line?.mode === 'tram') return <TramIcon />;
-    if (section.line?.mode === 'bus') return <DirectionsBusIcon />;
-
-    return <DirectionsBusIcon />; // Default
-  };
-
-  const getModeColor = (section: RouteSection): string => {
-    if (section.type === 'walk') return theme.palette.info.main;
-    if (section.type === 'bike') return theme.palette.success.main;
-    if (section.type === 'waiting') return theme.palette.warning.main;
-
-    // Use line color if available
-    if (section.line?.color) return `#${section.line.color}`;
-
-    return theme.palette.primary.main;
-  };
-
-  const getStepDistance = (section: RouteSection): string | null => {
-    if (section.type === 'walk' || section.type === 'bike') {
-      if (section.geojson?.coordinates) {
-        const distanceMeters = calculatePathDistance(section.geojson.coordinates);
-        return formatDistance(distanceMeters);
-      }
-    }
-    return null;
-  };
-
-  const getStepDuration = (section: RouteSection): string => {
-    const departure = new Date(section.departure).getTime();
-    const arrival = new Date(section.arrival).getTime();
-    return formatDuration(arrival - departure);
-  };
-
-  const getStepTitle = (section: RouteSection): string => {
-    if (section.type === 'walk') {
-      return 'À pied';
-    }
-    if (section.type === 'bike') {
-      return 'Vélo';
-    }
-    if (section.type === 'waiting') {
-      return 'Attente';
-    }
-    if (section.line) {
-      return `Ligne ${section.line.code}`;
-    }
-    return 'Transport';
-  };
-
-  const getStepInstructions = (section: RouteSection): string => {
-    if (section.type === 'walk') {
-      return getWalkingInstructions(section);
-    }
-    if (section.type === 'bike') {
-      const distance = getStepDistance(section);
-      return `Vélo jusqu'à ${section.to.name}${distance ? ` (${distance})` : ''}`;
-    }
-    if (section.type === 'waiting') {
-      return `Attendre ${getStepDuration(section)}`;
-    }
-    if (section.line) {
-      return `Direction ${section.headsign || section.to.name}`;
-    }
-    return `Vers ${section.to.name}`;
-  };
-
-  const formatTime = (isoString: string): string => {
-    const date = new Date(isoString);
-    return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  };
-
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ y: 100, opacity: 0 }}
+        initial={{ y: 80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 100, opacity: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        exit={{ y: 80, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 280, damping: 28 }}
         style={{
           position: 'fixed',
-          bottom: isMobile ? 0 : 24,
-          ...(isMobile
-            ? { left: 0, right: 0 }
-            : { left: '50%', transform: 'translateX(-50%)' }
-          ),
-          zIndex: 2100, // Above FloatingDock (2000)
-          width: isMobile ? '100%' : '90%',
-          maxWidth: isMobile ? 'none' : 600,
+          bottom: isMobile ? 12 : 24,
+          left: isMobile ? 10 : 24,
+          right: isMobile ? 10 : 'auto',
+          width: isMobile ? 'auto' : 520,
+          zIndex: 2100,
+          pointerEvents: 'auto',
         }}
       >
         <Paper
-          elevation={12}
+          elevation={16}
           sx={{
-            background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.98)} 0%, ${alpha(theme.palette.background.default, 0.95)} 100%)`,
-            backdropFilter: 'blur(20px)',
-            border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-            borderBottom: isMobile ? 'none' : `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-            borderRadius: isMobile ? '24px 24px 0 0' : 4,
+            borderRadius: 3,
             overflow: 'hidden',
-            maxHeight: isMobile ? '80vh' : 'auto',
-            display: 'flex',
-            flexDirection: 'column',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.32)}`,
+            background: `linear-gradient(170deg, ${alpha(theme.palette.background.paper, 0.96)} 0%, ${alpha(theme.palette.background.default, 0.92)} 100%)`,
+            backdropFilter: 'blur(16px)',
           }}
         >
-          {/* Header */}
           <Box
             sx={{
-              background: `linear-gradient(135deg, ${getModeColor(currentSection)} 0%, ${alpha(getModeColor(currentSection), 0.7)} 100%)`,
-              p: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              color: 'white',
+              p: 1.6,
+              borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              background: alpha(theme.palette.background.default, 0.32),
+              position: 'sticky',
+              top: 0,
+              zIndex: 2,
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box
-                sx={{
-                  bgcolor: alpha(theme.palette.common.white, 0.2),
-                  p: 1,
-                  borderRadius: 2,
-                  display: 'flex',
-                }}
-              >
-                {getModeIcon(currentSection)}
-              </Box>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Box>
-                <Typography variant="h6" fontWeight={700}>
-                  {getStepTitle(currentSection)}
+                <Typography variant="subtitle2" fontWeight={800}>
+                  Trajet en cours
                 </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                  Étape {currentJourneyStep + 1} sur {totalSteps}
+                <Typography variant="caption" color="text.secondary">
+                  {formatTime(journey.departure)} - {formatTime(journey.arrival)}
                 </Typography>
               </Box>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 0.5 }}>
-              <IconButton
-                onClick={() => setIsCollapsed(!isCollapsed)}
-                sx={{
-                  color: 'white',
-                  '&:hover': {
-                    bgcolor: alpha(theme.palette.common.white, 0.2),
-                  },
-                }}
-              >
-                {isCollapsed ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-              </IconButton>
-              <IconButton
-                onClick={handleClose}
-                sx={{
-                  color: 'white',
-                  '&:hover': {
-                    bgcolor: alpha(theme.palette.common.white, 0.2),
-                  },
-                }}
-              >
-                <CloseIcon />
-              </IconButton>
-            </Box>
+              <Stack direction="row" spacing={0.5}>
+                <IconButton size="small" onClick={() => setExpanded((prev) => !prev)}>
+                  {expanded ? <ExpandMoreIcon /> : <ExpandLessIcon />}
+                </IconButton>
+                <IconButton size="small" onClick={handleClose}>
+                  <CloseIcon />
+                </IconButton>
+              </Stack>
+            </Stack>
+
+            <Stack direction="row" spacing={0.8} mt={1} flexWrap="wrap" useFlexGap>
+              <Chip icon={<AccessTimeIcon />} size="small" label={stats.totalDuration} />
+              <Chip icon={<TransferWithinAStationIcon />} size="small" label={`${stats.transfers} corr.`} />
+              <Chip icon={<ExploreIcon />} size="small" label={stats.walkDistance} />
+            </Stack>
           </Box>
 
-          {/* Collapsible content */}
-          <Collapse in={!isCollapsed}>
-            {/* Content */}
-            <Box sx={{ p: 2, flex: 1, overflowY: 'auto' }}>
-              <Stack spacing={2}>
-                {/* Main instruction */}
-                <Typography variant="body1" fontWeight={600}>
-                  {getStepInstructions(currentSection)}
-                </Typography>
+          {expanded && (
+            <>
+              <Box
+                sx={{
+                  maxHeight: isMobile ? '42vh' : 320,
+                  overflowY: 'auto',
+                  p: 1.2,
+                }}
+              >
+                <Stack spacing={1}>
+                  {sections.map((section, index) => {
+                    const active = index === safeStep;
+                    const color = getModeColor(section);
+                    return (
+                      <Box
+                        key={`${section.type}-${index}`}
+                        onClick={() => setCurrentJourneyStep(index)}
+                        sx={{
+                          cursor: 'pointer',
+                          p: 1.1,
+                          borderRadius: 2,
+                          border: `1px solid ${active ? alpha(color, 0.8) : alpha(theme.palette.divider, 0.24)}`,
+                          bgcolor: active ? alpha(color, 0.14) : alpha(theme.palette.background.paper, 0.45),
+                          transition: 'all .18s ease',
+                          '&:hover': {
+                            borderColor: alpha(color, 0.7),
+                            transform: 'translateY(-1px)',
+                          },
+                        }}
+                      >
+                        <Stack direction="row" spacing={1}>
+                          <Box sx={{ width: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 0.4 }}>
+                            <Box
+                              sx={{
+                                width: 12,
+                                height: 12,
+                                borderRadius: '50%',
+                                bgcolor: color,
+                                boxShadow: `0 0 0 3px ${alpha(color, 0.25)}`,
+                              }}
+                            />
+                            {index < sections.length - 1 && (
+                              <Box
+                                sx={{
+                                  mt: 0.5,
+                                  width: 2,
+                                  minHeight: 34,
+                                  bgcolor: alpha(theme.palette.divider, 0.5),
+                                }}
+                              />
+                            )}
+                          </Box>
 
-                {/* Details chips */}
-                <Stack direction="row" spacing={1} flexWrap="wrap">
-                  {/* Duration */}
-                  <Chip
-                    icon={<AccessTimeIcon />}
-                    label={getStepDuration(currentSection)}
-                    size="small"
-                    sx={{
-                      bgcolor: alpha(theme.palette.primary.main, 0.1),
-                      border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-                    }}
-                  />
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                              <Stack direction="row" spacing={0.8} alignItems="center" sx={{ minWidth: 0 }}>
+                                <Box
+                                  sx={{
+                                    width: 24,
+                                    height: 24,
+                                    borderRadius: 1.5,
+                                    display: 'grid',
+                                    placeItems: 'center',
+                                    bgcolor: alpha(color, 0.2),
+                                    color,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {getModeIcon(section)}
+                                </Box>
+                                <Typography variant="body2" fontWeight={700} noWrap>
+                                  {getSectionTitle(section)}
+                                </Typography>
+                              </Stack>
+                              <Chip size="small" label={getSectionDuration(section)} />
+                            </Stack>
 
-                  {/* Distance (for walk/bike) */}
-                  {getStepDistance(currentSection) && (
-                    <Chip
-                      label={getStepDistance(currentSection)}
-                      size="small"
-                      sx={{
-                        bgcolor: alpha(theme.palette.info.main, 0.1),
-                        border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`,
-                      }}
-                    />
-                  )}
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.4 }}>
+                              {formatTime(section.departure)} - {formatTime(section.arrival)}
+                            </Typography>
+                            <Typography variant="body2" sx={{ mt: 0.35 }} noWrap>
+                              {section.from.name}{' -> '}{section.to.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.35, display: 'block' }} noWrap>
+                              {getSectionSubtitle(section)}
+                            </Typography>
 
-                  {/* Line chip for public transport */}
-                  {currentSection.line && (
-                    <Chip
-                      label={currentSection.line.code}
-                      size="small"
-                      sx={{
-                        bgcolor: `#${currentSection.line.color}`,
-                        color: 'white',
-                        fontWeight: 700,
-                        border: '2px solid rgba(255, 255, 255, 0.3)',
-                      }}
-                    />
-                  )}
+                            <Stack direction="row" spacing={0.8} mt={0.8} flexWrap="wrap" useFlexGap>
+                              {section.line?.code && (
+                                <Chip
+                                  size="small"
+                                  label={section.line.code}
+                                  sx={{
+                                    bgcolor: section.line.color ? `#${section.line.color}` : theme.palette.grey[700],
+                                    color: theme.palette.common.white,
+                                    fontWeight: 700,
+                                  }}
+                                />
+                              )}
+                              {getSectionDistance(section) && (
+                                <Chip size="small" label={getSectionDistance(section)} variant="outlined" />
+                              )}
+                            </Stack>
+                          </Box>
+                        </Stack>
+                      </Box>
+                    );
+                  })}
                 </Stack>
+              </Box>
 
-                {/* From / To with times */}
-                <Box>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Départ
-                      </Typography>
-                      <Typography variant="body2" fontWeight={600}>
-                        {currentSection.from.name}
-                      </Typography>
-                      <Typography variant="caption" color="primary">
-                        {formatTime(currentSection.departure)}
-                      </Typography>
-                    </Box>
-                    <Box
-                      sx={{
-                        width: 40,
-                        height: 2,
-                        bgcolor: alpha(theme.palette.divider, 0.3),
-                      }}
-                    />
-                    <Box sx={{ textAlign: 'right' }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Arrivée
-                      </Typography>
-                      <Typography variant="body2" fontWeight={600}>
-                        {currentSection.to.name}
-                      </Typography>
-                      <Typography variant="caption" color="primary">
-                        {formatTime(currentSection.arrival)}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </Box>
+              <Divider />
 
-                {/* Show details button for public transport */}
-                {currentSection.type === 'public-transport' && (
-                  <Box>
-                    <IconButton
-                      size="small"
-                      onClick={() => setShowDetails(!showDetails)}
-                      sx={{
-                        width: '100%',
-                        borderRadius: 2,
-                        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-                      }}
-                    >
-                      {showDetails ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                      <Typography variant="caption" sx={{ ml: 1 }}>
-                        {showDetails ? 'Masquer' : 'Voir'} les détails
-                      </Typography>
-                    </IconButton>
-                    <Collapse in={showDetails}>
-                      <List dense>
-                        <ListItem>
-                          <ListItemText
-                            primary="Information"
-                            secondary={`Trajet direct de ${currentSection.from.name} à ${currentSection.to.name}`}
-                          />
-                        </ListItem>
-                        <ListItem>
-                          <ListItemText
-                            primary="Note"
-                            secondary="Les arrêts intermédiaires ne sont pas disponibles via l'API"
-                          />
-                        </ListItem>
-                      </List>
-                    </Collapse>
-                  </Box>
-                )}
-              </Stack>
-            </Box>
-
-            {/* Navigation controls */}
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                p: 2,
-                pt: 0,
-                gap: 2,
-              }}
-            >
-              <motion.div
-                style={{ flex: 1 }}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                <IconButton
-                  onClick={handlePrevious}
-                  disabled={currentJourneyStep === 0}
-                  sx={{
-                    width: '100%',
-                    py: 1.5,
-                    borderRadius: 2,
-                    bgcolor: alpha(theme.palette.primary.main, 0.1),
-                    border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-                    '&:hover': {
-                      bgcolor: alpha(theme.palette.primary.main, 0.2),
-                    },
-                    '&.Mui-disabled': {
-                      bgcolor: alpha(theme.palette.action.disabled, 0.05),
-                      border: `2px solid ${alpha(theme.palette.action.disabled, 0.1)}`,
-                    },
-                  }}
-                >
-                  <ChevronLeftIcon />
-                  <Typography variant="button" sx={{ ml: 0.5 }}>
-                    Précédent
-                  </Typography>
-                </IconButton>
-              </motion.div>
-
-              <motion.div
-                style={{ flex: 1 }}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                <IconButton
-                  onClick={handleNext}
-                  disabled={currentJourneyStep === totalSteps - 1}
-                  sx={{
-                    width: '100%',
-                    py: 1.5,
-                    borderRadius: 2,
-                    bgcolor: alpha(theme.palette.primary.main, 0.1),
-                    border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-                    '&:hover': {
-                      bgcolor: alpha(theme.palette.primary.main, 0.2),
-                    },
-                    '&.Mui-disabled': {
-                      bgcolor: alpha(theme.palette.action.disabled, 0.05),
-                      border: `2px solid ${alpha(theme.palette.action.disabled, 0.1)}`,
-                    },
-                  }}
-                >
-                  <Typography variant="button" sx={{ mr: 0.5 }}>
+              <Box sx={{ p: 1.2 }}>
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={() => setCurrentJourneyStep(Math.max(0, safeStep - 1))}
+                    disabled={safeStep === 0}
+                    startIcon={<ChevronLeftIcon />}
+                  >
+                    Precedent
+                  </Button>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={() => setCurrentJourneyStep(Math.min(sections.length - 1, safeStep + 1))}
+                    disabled={safeStep === sections.length - 1}
+                    endIcon={<ChevronRightIcon />}
+                  >
                     Suivant
-                  </Typography>
-                  <ChevronRightIcon />
-                </IconButton>
-              </motion.div>
-            </Box>
-          </Collapse>
+                  </Button>
+                </Stack>
+              </Box>
+            </>
+          )}
         </Paper>
       </motion.div>
     </AnimatePresence>

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLines } from '../hooks/useLines';
 import { useStops } from '../hooks/useStops';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useSelectionStore } from '../stores/selectionStore';
 import { useFavoritesStore } from '../stores/favoritesStore';
 import { Line } from '../types';
@@ -37,6 +38,7 @@ import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
 import TramIcon from '@mui/icons-material/Tram';
 import SubwayIcon from '@mui/icons-material/Subway';
 import TrainIcon from '@mui/icons-material/Train';
+import DirectionsBoatIcon from '@mui/icons-material/DirectionsBoat';
 import FilterListIcon from '@mui/icons-material/FilterList';
 
 import DirectionsIcon from '@mui/icons-material/Directions';
@@ -47,14 +49,19 @@ interface ModernSidebarProps {
   onOpenRoutePlanner: () => void;
 }
 
+const INITIAL_LINES_PER_CATEGORY = 72;
+const LOAD_MORE_LINES_STEP = 72;
+
 const ModernSidebar: React.FC<ModernSidebarProps> = ({ open, onClose, onOpenRoutePlanner }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [searchInput, setSearchInput] = useState('');
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | 'all'>('all');
+  const [visibleCountByCategory, setVisibleCountByCategory] = useState<Record<string, number>>({});
+  const debouncedSearchInput = useDebouncedValue(searchInput, 250);
 
   const { data: lines, isLoading: isLoadingLines } = useLines();
-  const { data: stops, isLoading: isLoadingStops } = useStops(false);
+  const { data: stops } = useStops(open && debouncedSearchInput.trim().length >= 2);
   const { selectedLine, setSelectedLine, setCenterCoordinates } = useSelectionStore();
   const { favoriteLines, favoriteStops, addFavoriteLine, removeFavoriteLine, isFavoriteLine, addFavoriteStop, removeFavoriteStop, isFavoriteStop } = useFavoritesStore();
 
@@ -63,6 +70,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({ open, onClose, onOpenRout
       case 'metro': return <SubwayIcon fontSize="small" />;
       case 'tram': return <TramIcon fontSize="small" />;
       case 'funicular': return <TrainIcon fontSize="small" />;
+      case 'fluvial': return <DirectionsBoatIcon fontSize="small" />;
       default: return <DirectionsBusIcon fontSize="small" />;
     }
   };
@@ -83,11 +91,19 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({ open, onClose, onOpenRout
   }, [lines]);
 
   // Sort categories: Metro, Tram, Funi, Bus
-  const sortedCategories = ['metro', 'tram', 'funicular', 'bus'].filter(c => groupedLines[c]);
+  const sortedCategories = ['metro', 'tram', 'funicular', 'fluvial', 'bus'].filter(c => groupedLines[c]);
+
+  useEffect(() => {
+    const next: Record<string, number> = {};
+    sortedCategories.forEach((category) => {
+      next[category] = INITIAL_LINES_PER_CATEGORY;
+    });
+    setVisibleCountByCategory(next);
+  }, [sortedCategories.join('|')]);
 
   const filteredResults = useMemo(() => {
-    if (!searchInput) return null;
-    const searchLower = searchInput.toLowerCase();
+    if (!debouncedSearchInput) return null;
+    const searchLower = debouncedSearchInput.toLowerCase();
 
     return {
       lines: lines?.filter(l =>
@@ -100,7 +116,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({ open, onClose, onOpenRout
         (s.name?.toLowerCase() || '').includes(searchLower)
       ).slice(0, 10) || []
     };
-  }, [searchInput, lines, stops]);
+  }, [debouncedSearchInput, lines, stops]);
 
   return (
     <AnimatePresence>
@@ -109,7 +125,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({ open, onClose, onOpenRout
           initial={{ x: -400, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: -400, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          transition={{ type: 'spring', stiffness: 220, damping: 28 }}
           style={{
             pointerEvents: 'auto', // Re-enable clicks for the panel itself
             height: '100%',
@@ -122,13 +138,13 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({ open, onClose, onOpenRout
               mt: isMobile ? 0 : 2,
               ml: isMobile ? 0 : 2,
               mb: isMobile ? 0 : 2,
-              width: isMobile ? '100%' : '400px',
+              width: isMobile ? '100%' : 'min(430px, 42vw)',
               height: isMobile ? '100%' : 'calc(100% - 48px)', // More spacing
-              bgcolor: alpha(theme.palette.background.paper, 0.6), // More transparent
-              backdropFilter: 'blur(30px)', // Heavier blur
-              borderRadius: isMobile ? 0 : 6, // Match theme shape
-              border: isMobile ? 'none' : `1px solid ${alpha(theme.palette.common.white, 0.08)}`,
-              boxShadow: isMobile ? 'none' : '0 24px 48px rgba(0,0,0,0.5)',
+              bgcolor: alpha(theme.palette.background.paper, 0.88),
+              backdropFilter: 'blur(22px)',
+              borderRadius: isMobile ? 0 : 5,
+              border: isMobile ? 'none' : `1px solid ${alpha(theme.palette.primary.light, 0.14)}`,
+              boxShadow: isMobile ? 'none' : `0 24px 48px ${alpha('#020617', 0.6)}`,
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
@@ -138,8 +154,8 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({ open, onClose, onOpenRout
             <Box sx={{ p: { xs: 2, md: 3 }, pb: { xs: 1, md: 2 } }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="h5" sx={{ fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: { xs: '1.25rem', md: '1.5rem' } }}>
-                  Explorer
-                  <Typography component="span" color="primary" variant="h5" fontWeight={700} sx={{ fontSize: { xs: '1.25rem', md: '1.5rem' } }}>.</Typography>
+                  Transit Control
+                  <Typography component="span" color="secondary" variant="h5" fontWeight={700} sx={{ fontSize: { xs: '1.25rem', md: '1.5rem' } }}>.</Typography>
                 </Typography>
                 <Button
                   variant="contained"
@@ -151,8 +167,8 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({ open, onClose, onOpenRout
                     textTransform: 'none',
                     fontWeight: 700,
                     fontSize: { xs: '0.8rem', md: '0.875rem' },
-                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-                    boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, #2563EB 100%)`,
+                    boxShadow: `0 8px 16px ${alpha(theme.palette.primary.main, 0.32)}`
                   }}
                 >
                   Itinéraire
@@ -181,11 +197,11 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({ open, onClose, onOpenRout
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 3,
-                    bgcolor: alpha(theme.palette.background.default, 0.5),
+                    bgcolor: alpha(theme.palette.background.default, 0.62),
                     fontSize: { xs: '0.9rem', md: '1rem' },
                     '&.Mui-focused': {
-                      bgcolor: alpha(theme.palette.background.default, 0.8),
-                      boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.3)}`,
+                      bgcolor: alpha(theme.palette.background.default, 0.82),
+                      boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.35)}`,
                     }
                   }
                 }}
@@ -426,7 +442,7 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({ open, onClose, onOpenRout
                             gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))',
                             gap: 1
                           }}>
-                            {linesInCategory.map(line => {
+                            {linesInCategory.slice(0, visibleCountByCategory[category] ?? INITIAL_LINES_PER_CATEGORY).map(line => {
                               const isSelected = selectedLine?.line_sort_code === line.line_sort_code;
                               // const uniqueKey = `${line.line_sort_code}-${line.direction}`; // Not needed with groupedLines unique logic
 
@@ -456,6 +472,23 @@ const ModernSidebar: React.FC<ModernSidebarProps> = ({ open, onClose, onOpenRout
                               );
                             })}
                           </Box>
+                          {(visibleCountByCategory[category] ?? INITIAL_LINES_PER_CATEGORY) < linesInCategory.length && (
+                            <Button
+                              fullWidth
+                              size="small"
+                              variant="text"
+                              onClick={() => setVisibleCountByCategory((prev) => ({
+                                ...prev,
+                                [category]: Math.min(
+                                  (prev[category] ?? INITIAL_LINES_PER_CATEGORY) + LOAD_MORE_LINES_STEP,
+                                  linesInCategory.length
+                                ),
+                              }))}
+                              sx={{ mt: 1.5 }}
+                            >
+                              Afficher plus ({linesInCategory.length - (visibleCountByCategory[category] ?? INITIAL_LINES_PER_CATEGORY)})
+                            </Button>
+                          )}
                         </Box>
                       );
                     })
