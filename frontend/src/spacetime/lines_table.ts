@@ -13,7 +13,6 @@ import {
 export default __t.row({
   id: __t.string().primaryKey(),
   lineName: __t.option(__t.string()).name("line_name"),
-  traceCode: __t.option(__t.string()).name("trace_code"),
   lineCode: __t.option(__t.string()).name("line_code"),
   traceType: __t.option(__t.string()).name("trace_type"),
   traceName: __t.option(__t.string()).name("trace_name"),

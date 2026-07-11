@@ -71,9 +71,13 @@ export const useSpacetime = () => {
                 resetConnection();
                 retryTimer = window.setTimeout(connect, 1500);
               })
-              .subscribe(
-                CRITICAL_TABLES.map((t) => `SELECT * FROM ${t}`)
-              );
+              .subscribe([
+                ...CRITICAL_TABLES.map((t) => `SELECT * FROM ${t}`),
+                // Rail line geometry only (~1MB). Bus traces (the bulk, ~500MB)
+                // are never bulk-subscribed — fetched on-demand by id when a
+                // bus line is selected. is_rail is a plain bool so it filters.
+                'SELECT * FROM line_traces WHERE is_rail = true',
+              ]);
           }
         })
         .catch((err) => {

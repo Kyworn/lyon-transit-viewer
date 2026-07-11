@@ -175,7 +175,6 @@ pub struct Line {
     #[primary_key]
     pub id: String,
     pub line_name: Option<String>,
-    pub trace_code: Option<String>,
     pub line_code: Option<String>,
     pub trace_type: Option<String>,
     pub trace_name: Option<String>,
@@ -195,6 +194,20 @@ pub struct Line {
     pub last_update: Option<String>,
     pub category: Option<String>,
     pub color: Option<String>,
+}
+
+// Line geometry split out of `lines` so the metadata table stays light. The
+// full bus trace set is ~500MB; subscribing all of it on first paint is what
+// made the app crawl. Clients subscribe rail traces (`is_rail = true`) up
+// front and fetch a bus line's trace on-demand by `id`. `is_rail` is a plain
+// bool (NOT Option) so it can be filtered in a subscription WHERE clause —
+// SpacetimeDB SQL cannot compare Option columns to literals.
+#[table(accessor = line_traces, public)]
+pub struct LineTrace {
+    #[primary_key]
+    pub id: String,
+    pub trace_code: Option<String>,
+    pub is_rail: bool,
 }
 
 #[table(accessor = stops, public)]

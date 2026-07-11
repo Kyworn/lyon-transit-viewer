@@ -1,8 +1,8 @@
 use spacetimedb::{ProcedureContext, Table};
 
 use crate::models::{
-    config, alerts, stations, stops, lines, line_icon_mapping, pricing_zones, stop_ref_name_cache,
-    Alert, IngestRequest, Line, LineIconMapping, PricingZones, Station, Stop, StaticPayload, StopRefNameCache,
+    config, alerts, stations, stops, lines, line_traces, line_icon_mapping, pricing_zones, stop_ref_name_cache,
+    Alert, IngestRequest, Line, LineTrace, LineIconMapping, PricingZones, Station, Stop, StaticPayload, StopRefNameCache,
 };
 use crate::serde_types::{
     AlertsResponse, GeoFeatureCollection, GeoFeatureCollectionAnyGeom, LineProperties,
@@ -55,10 +55,18 @@ pub fn ingest_lines_from_json(ctx: &mut ProcedureContext, body: &str, category: 
                     }
                 }
 
+                // Geometry lives in its own table (see LineTrace). Rail traces
+                // are subscribed on first paint; bus traces on-demand.
+                let is_rail = final_category != "bus";
+                tx.db.line_traces().id().insert_or_update(LineTrace {
+                    id: feature.id.clone(),
+                    trace_code: geometry_json,
+                    is_rail,
+                });
+
                 tx.db.lines().id().insert_or_update(Line {
                     id: feature.id.clone(),
                     line_name: feature.properties.nom_trace.clone(),
-                    trace_code: geometry_json,
                     line_code: feature.properties.code_ligne.clone(),
                     trace_type: feature.properties.type_trace.clone(),
                     trace_name: feature.properties.nom_trace.clone(),

@@ -246,7 +246,6 @@ export type JourneyRequest = __Infer<typeof JourneyRequest>;
 export const Line = __t.object("Line", {
   id: __t.string(),
   lineName: __t.option(__t.string()),
-  traceCode: __t.option(__t.string()),
   lineCode: __t.option(__t.string()),
   traceType: __t.option(__t.string()),
   traceName: __t.option(__t.string()),
@@ -276,6 +275,13 @@ export const LineIconMapping = __t.object("LineIconMapping", {
   pictoComplet: __t.option(__t.string()),
 });
 export type LineIconMapping = __Infer<typeof LineIconMapping>;
+
+export const LineTrace = __t.object("LineTrace", {
+  id: __t.string(),
+  traceCode: __t.option(__t.string()),
+  isRail: __t.bool(),
+});
+export type LineTrace = __Infer<typeof LineTrace>;
 
 export const PricingZones = __t.object("PricingZones", {
   id: __t.u64(),

@@ -53,7 +53,6 @@ import * as SetConfigPlainProcedure from "./set_config_plain_procedure";
 // Import all table schema definitions
 import AlertsRow from "./alerts_table";
 import AutopartageStationsRow from "./autopartage_stations_table";
-import ConfigRow from "./config_table";
 import EstimatedCallsCurrentRow from "./estimated_calls_current_table";
 import EstimatedVehicleJourneysCurrentRow from "./estimated_vehicle_journeys_current_table";
 import GtfsAgencyRow from "./gtfs_agency_table";
@@ -68,6 +67,7 @@ import GtfsTransfersRow from "./gtfs_transfers_table";
 import GtfsTripsRow from "./gtfs_trips_table";
 import IngestionRunsRow from "./ingestion_runs_table";
 import LineIconMappingRow from "./line_icon_mapping_table";
+import LineTracesRow from "./line_traces_table";
 import LinesRow from "./lines_table";
 import PricingZonesRow from "./pricing_zones_table";
 import PublicToiletsRow from "./public_toilets_table";
@@ -103,17 +103,6 @@ const tablesSchema = __schema({
       { name: 'autopartage_stations_id_station_key', constraint: 'unique', columns: ['idStation'] },
     ],
   }, AutopartageStationsRow),
-  config: __table({
-    name: 'config',
-    indexes: [
-      { accessor: 'id', name: 'config_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
-      ] },
-    ],
-    constraints: [
-      { name: 'config_id_key', constraint: 'unique', columns: ['id'] },
-    ],
-  }, ConfigRow),
   estimated_calls_current: __table({
     name: 'estimated_calls_current',
     indexes: [
@@ -280,6 +269,17 @@ const tablesSchema = __schema({
       { name: 'line_icon_mapping_code_ligne_key', constraint: 'unique', columns: ['codeLigne'] },
     ],
   }, LineIconMappingRow),
+  line_traces: __table({
+    name: 'line_traces',
+    indexes: [
+      { accessor: 'id', name: 'line_traces_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'line_traces_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, LineTracesRow),
   lines: __table({
     name: 'lines',
     indexes: [

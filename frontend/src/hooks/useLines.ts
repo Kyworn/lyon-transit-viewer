@@ -70,10 +70,19 @@ export const useLines = (options: UseLinesOptions = {}) => {
   const updateData = useCallback(() => {
     if (!conn) return;
     const rows = Array.from(conn.db.lines.iter() as Iterable<any>);
+    // Geometry lives in the separate line_traces table now. Only rail traces
+    // (+ on-demand selected lines) are subscribed, so this map holds just the
+    // loaded ones; missing traces resolve to '' and aren't drawn until loaded.
+    const traceById = new Map<string, string>();
+    if (includeTrace) {
+      for (const t of conn.db.line_traces.iter() as Iterable<any>) {
+        if (t.traceCode) traceById.set(t.id, t.traceCode);
+      }
+    }
     const mapped: Line[] = rows.map((row) => ({
       id: row.id,
       line_name: row.lineName || '',
-      trace_code: includeTrace ? (row.traceCode || '') : '',
+      trace_code: includeTrace ? (traceById.get(row.id) || '') : '',
       line_code: row.lineCode || '',
       category: row.category || '',
       color: row.color || '',
@@ -95,10 +104,17 @@ export const useLines = (options: UseLinesOptions = {}) => {
       conn.db.lines.onInsert(handler);
       conn.db.lines.onDelete(handler);
       conn.db.lines.onUpdate(handler);
+      // Refire when trace rows arrive (rail up front, bus on-demand).
+      conn.db.line_traces.onInsert(handler);
+      conn.db.line_traces.onDelete(handler);
+      conn.db.line_traces.onUpdate(handler);
       return () => {
         conn.db.lines.removeOnInsert(handler);
         conn.db.lines.removeOnDelete(handler);
         conn.db.lines.removeOnUpdate(handler);
+        conn.db.line_traces.removeOnInsert(handler);
+        conn.db.line_traces.removeOnDelete(handler);
+        conn.db.line_traces.removeOnUpdate(handler);
       };
     },
     [conn],

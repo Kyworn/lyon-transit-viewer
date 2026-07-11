@@ -4,6 +4,7 @@ import { useAppStore } from '../../stores/useAppStore';
 import { useStops } from '../../hooks/useStops';
 import { useVehicles } from '../../hooks/useVehicles';
 import { useLines } from '../../hooks/useLines';
+import { getConnection } from '../../spacetime/connection';
 import { usePricingZones } from '../../hooks/usePricingZones';
 import { useLineIcons } from '../../hooks/useLineIcons';
 import { useVelov } from '../../hooks/useVelov';
@@ -420,6 +421,28 @@ export default function MapComponent() {
       });
     }
   }, [lines, selectedLine, selectedJourney, isMapLoaded]);
+
+  // On-demand bus trace: rail traces are subscribed up front, but bus geometry
+  // is fetched only when its line is selected (keeps first paint at ~1MB, not
+  // ~500MB). Rail/fluvial already have their trace, so skip them. Once fetched,
+  // useLines refires via the line_traces subscription and the effect above draws it.
+  const requestedTraces = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const id = selectedLine?.id;
+    const category = selectedLine?.category || '';
+    if (!id) return;
+    if (['metro', 'tram', 'funicular', 'fluvial'].includes(category)) return;
+    if (requestedTraces.current.has(id)) return;
+    const conn = getConnection();
+    if (!conn) return;
+    requestedTraces.current.add(id);
+    try {
+      // ids are system feature ids (no quotes) — safe to inline.
+      (conn as any).subscriptionBuilder().subscribe([`SELECT * FROM line_traces WHERE id = '${id}'`]);
+    } catch (e) {
+      requestedTraces.current.delete(id);
+    }
+  }, [selectedLine?.id, selectedLine?.category]);
 
   // Stops rendering effect
   useEffect(() => {

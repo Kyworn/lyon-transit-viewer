@@ -11,7 +11,7 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  id: __t.u64().primaryKey(),
-  tclApiToken: __t.option(__t.string()).name("tcl_api_token"),
-  gtfsZipUrl: __t.option(__t.string()).name("gtfs_zip_url"),
+  id: __t.string().primaryKey(),
+  traceCode: __t.option(__t.string()).name("trace_code"),
+  isRail: __t.bool().name("is_rail"),
 });
