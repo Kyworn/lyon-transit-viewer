@@ -1,5 +1,12 @@
 import { DbConnection } from './index';
 
+// Timing instrumentation: [load +Xms] labels. Silent unless URL has ?debug.
+const LOAD_T0 = performance.now();
+const DEBUG = typeof location !== 'undefined' && location.search.includes('debug');
+export const plog = (label: string) => {
+  if (DEBUG) console.log(`[load +${Math.round(performance.now() - LOAD_T0)}ms] ${label}`);
+};
+
 let connection: DbConnection | null = null;
 let connecting: Promise<DbConnection> | null = null;
 
@@ -14,12 +21,14 @@ export const connectSpacetime = (): Promise<DbConnection> => {
   if (connecting) return connecting;
 
   const { uri, dbName } = getConfig();
+  plog(`connecting to ${uri}/${dbName}`);
 
   connecting = new Promise((resolve, reject) => {
     (DbConnection.builder() as any)
       .withUri(uri)
       .withDatabaseName(dbName)
       .onConnect((ctx: DbConnection) => {
+        plog('WS connected');
         connection = ctx as DbConnection;
         connecting = null;
         resolve(connection);

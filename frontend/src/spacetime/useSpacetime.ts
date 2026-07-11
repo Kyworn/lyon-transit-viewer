@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { connectSpacetime, resetConnection } from './connection';
+import { connectSpacetime, resetConnection, plog } from './connection';
 import type { DbConnection } from './index';
 
 let subscribed = false;
@@ -52,11 +52,17 @@ export const useSpacetime = () => {
 
           if (!subscribed) {
             subscribed = true;
+            plog('critical subscribe issued');
             db.subscriptionBuilder()
               .onApplied(() => {
+                const counts = [...CRITICAL_TABLES, 'line_traces']
+                  .map((t) => `${t}=${Array.from((db as any).db[t]?.iter() ?? []).length}`)
+                  .join(' ');
+                plog(`CRITICAL applied (${counts})`);
                 // Critical data applied — now stream the deferred tables so
                 // they don't delay the first render.
                 db.subscriptionBuilder()
+                  .onApplied(() => plog('DEFERRED applied'))
                   .onError((_ctx: unknown, err: unknown) => {
                     console.error('Deferred subscription error', err);
                   })

@@ -4,7 +4,7 @@ import { useAppStore } from '../../stores/useAppStore';
 import { useStops } from '../../hooks/useStops';
 import { useVehicles } from '../../hooks/useVehicles';
 import { useLines } from '../../hooks/useLines';
-import { getConnection } from '../../spacetime/connection';
+import { getConnection, plog } from '../../spacetime/connection';
 import { usePricingZones } from '../../hooks/usePricingZones';
 import { useLineIcons } from '../../hooks/useLineIcons';
 import { useVelov } from '../../hooks/useVelov';
@@ -136,9 +136,23 @@ export default function MapComponent() {
     if (splashArmedRef.current) return;
     const m = map.current;
     if (!m || !isMapLoaded) return;
+    plog(`splash gate: stops=${stops.length} lines=${lines.length} zones=${pricingZones?.length ?? 0} mapReady=${isMapLoaded}`);
     if (stops.length === 0 || lines.length === 0 || (pricingZones?.length ?? 0) === 0) return;
     splashArmedRef.current = true;
-    m.once('idle', () => setMapLoaded(true));
+    plog('splash gate PASSED');
+    // Style is loaded and critical layers are painted by now. Dismiss on the
+    // next idle, but cap it: a live-updating source (vehicles-source re-setData
+    // on each poll) can hold `idle` off indefinitely, so don't wait on it.
+    let dismissed = false;
+    const dismiss = (why: string) => {
+      if (dismissed) return;
+      dismissed = true;
+      clearTimeout(cap);
+      plog(`splash dismissed (${why})`);
+      setMapLoaded(true);
+    };
+    const cap = setTimeout(() => dismiss('cap'), 800);
+    m.once('idle', () => dismiss('idle'));
   }, [isMapLoaded, stops.length, lines.length, pricingZones?.length, setMapLoaded]);
 
   // Initialize Map
@@ -174,13 +188,15 @@ export default function MapComponent() {
       });
 
       mapInstance.on('load', async () => {
+        plog('maplibre style loaded');
         setIsMapLoaded(true);
-        setupMapAtmosphere(mapInstance);
-        setup3DBuildings(mapInstance);
-        customizeBaseStyle(mapInstance);
+        setupMapAtmosphere(mapInstance); plog('atmosphere done');
+        setup3DBuildings(mapInstance); plog('3D buildings done');
+        customizeBaseStyle(mapInstance); plog('base style customized');
 
         try {
           await registerStopIcons(mapInstance);
+          plog('stop icons registered');
           setStopIconsLoaded(true);
         } catch (e) {
           console.error('Failed loading stop icons', e);
