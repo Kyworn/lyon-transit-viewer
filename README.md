@@ -62,6 +62,3 @@ python3 -m http.server 3001 --bind 127.0.0.1 -d build
 
 
 
-
-### Suivi Vehicules
-![Suivi Vehicules](screenshots/vehicle_tracking.png)
