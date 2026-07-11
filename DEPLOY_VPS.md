@@ -61,6 +61,8 @@ cd ..
 spacetime start --listen-addr 127.0.0.1:3000
 # dans un autre shell:
 spacetime publish --server local --module-path spacetimedb/spacetimedb --yes lyon-transit
+# Si "Reordering table lines requires a manual migration" (module deja publie ici avant) :
+#   ajouter --delete-data (destructif, re-ingerer ensuite via A.5)
 ./scripts/set_config.sh "<email:password>"
 ```
 
