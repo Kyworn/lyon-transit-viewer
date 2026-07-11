@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
 import { useAlerts } from '../../hooks/useAlerts';
+import { MOBILE_MAX } from '../../constants/responsive';
 
 export default function Header() {
   const {
@@ -9,9 +10,8 @@ export default function Header() {
     themeMode,
     toggleTheme,
     alertsPanelOpen,
-    setAlertsPanelOpen,
     adminDashboardOpen,
-    setAdminDashboardOpen,
+    togglePanel,
   } = useAppStore();
 
   const { data: alerts } = useAlerts();
@@ -109,14 +109,14 @@ export default function Header() {
           gap: 12px;
         }
 
-        @media (max-width: 992px) {
+        @media (max-width: ${MOBILE_MAX}px) {
           .main-header {
             margin-left: 24px !important;
             margin-right: 24px !important;
           }
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: ${MOBILE_MAX}px) {
           .main-header {
             margin: 16px 16px 0 16px !important;
             padding: 10px 16px;
@@ -198,7 +198,7 @@ export default function Header() {
         <div className="header-actions">
           {/* Alerts count badge */}
           <button 
-            onClick={() => setAlertsPanelOpen(!alertsPanelOpen)}
+            onClick={() => togglePanel('alerts')}
             className="glass-panel" 
             style={{
               padding: '6px 12px',
@@ -223,7 +223,7 @@ export default function Header() {
 
           {/* Admin Dashboard toggle */}
           <button
-            onClick={() => setAdminDashboardOpen(!adminDashboardOpen)}
+            onClick={() => togglePanel('adminDashboard')}
             className="glass-panel"
             style={{
               width: '36px',

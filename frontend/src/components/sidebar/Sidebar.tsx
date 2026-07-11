@@ -6,6 +6,8 @@ import { useStops } from '../../hooks/useStops';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { Stop } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { usePanelDismiss, useSwipeToClose } from '../../hooks/usePanelDismiss';
 
 // Code parsing and normalizations
 const normalizeCode = (value?: string | null) =>
@@ -63,6 +65,11 @@ export default function Sidebar() {
     setRoutePlannerOpen,
     setSelectedStop,
   } = useAppStore();
+
+  const { isMobile } = useBreakpoint();
+  const closeSidebar = () => setSidebarOpen(false);
+  usePanelDismiss(sidebarOpen, closeSidebar);
+  const { panelProps, handleProps } = useSwipeToClose(isMobile, closeSidebar);
 
   const [searchInput, setSearchInput] = useState('');
   const [activeTab, setActiveTab] = useState<'explore' | 'favorites'>('explore');
@@ -269,7 +276,19 @@ export default function Sidebar() {
           exit={{ x: -440, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 220, damping: 28 }}
           className="sidebar-wrapper"
+          {...panelProps}
         >
+          {isMobile && (
+            <div
+              {...handleProps}
+              style={{
+                display: 'flex', justifyContent: 'center', padding: '10px 0 2px',
+                flexShrink: 0, ...handleProps.style,
+              }}
+            >
+              <span style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.25)' }} />
+            </div>
+          )}
           <style dangerouslySetInnerHTML={{ __html: `
             .sidebar-wrapper {
               position: absolute;
@@ -508,28 +527,50 @@ export default function Sidebar() {
               }}>
                 <span className="sidebar-brand-gradient">Explore.Lyon</span>
               </h2>
-              <button
-                onClick={() => {
-                  setSidebarOpen(false);
-                  setRoutePlannerOpen(true);
-                }}
-                className="glass-panel"
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--primary)',
-                  cursor: 'pointer',
-                }}
-                title="Itinéraires"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    setRoutePlannerOpen(true);
+                  }}
+                  className="glass-panel"
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--primary)',
+                    cursor: 'pointer',
+                  }}
+                  title="Itinéraires"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+                <button
+                  onClick={closeSidebar}
+                  className="glass-panel"
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                  }}
+                  title="Fermer"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {/* 2. Interactive Search Box */}

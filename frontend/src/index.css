@@ -63,3 +63,12 @@ button {
 button:active {
   transform: scale(0.96);
 }
+
+/* Dock horizontal scroll on narrow screens: keep it scrollable but invisible */
+.dock-scroll {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+.dock-scroll::-webkit-scrollbar {
+  display: none; /* WebKit */
+}

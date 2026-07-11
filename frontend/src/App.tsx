@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { useAppStore } from './stores/useAppStore';
 import { useUrlSync } from './hooks/useUrlSync';
+import { useBreakpoint } from './hooks/useBreakpoint';
+import { useSpacetime } from './spacetime/useSpacetime';
 
 // Sleek Custom Components
 import MapComponent from './components/map/Map';
@@ -17,6 +19,7 @@ import AlertsPanel from './components/ui/AlertsPanel';
 import LayersPanel from './components/ui/LayersPanel';
 import FavoritesPanel from './components/ui/FavoritesPanel';
 import Onboarding from './components/ui/Onboarding';
+import Splash from './components/ui/Splash';
 
 export default function App() {
   const {
@@ -34,6 +37,14 @@ export default function App() {
     dashboardOpen,
     setDashboardOpen,
   } = useAppStore();
+
+  const { isMobile } = useBreakpoint();
+  // Defer the Mapbox WebGL mount until connected so its main-thread freeze
+  // happens under the Splash overlay instead of stuttering visible UI.
+  const { connected } = useSpacetime();
+  // On mobile, fullscreen panels are immersive: hide the floating Header + Dock
+  // so no chrome overlaps a panel's own close button (was inconsistent per panel).
+  const hideChrome = isMobile && (sidebarOpen || alertsPanelOpen || routePlannerOpen || adminDashboardOpen);
 
   // Sync theme attribute to document body for standard theme toggles
   useEffect(() => {
@@ -67,7 +78,7 @@ export default function App() {
       />
 
       {/* 2. Global Premium Header Nav Fix (Floating Overlay) */}
-      <Header />
+      {!hideChrome && <Header />}
 
       {/* 3. Main Coordinates Workspace (Sidebar overlaying Mapbox Canvas) */}
       <div style={{
@@ -82,7 +93,7 @@ export default function App() {
 
         {/* Dynamic Mapbox Rendering Layer */}
         <div style={{ flex: 1, position: 'relative', height: '100%' }}>
-          <MapComponent />
+          {connected && <MapComponent />}
         </div>
 
         {/* Selected Stop Details Pop-over Card */}
@@ -176,18 +187,21 @@ export default function App() {
         <AdminDashboard onClose={() => setAdminDashboardOpen(false)} />
       )}
 
-      <div style={{
-        position: 'absolute',
-        bottom: '24px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 5,
-      }}>
-        <FloatingDock />
-        <LayersPanel />
-      </div>
+      {!hideChrome && (
+        <div style={{
+          position: 'absolute',
+          bottom: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 5,
+        }}>
+          <FloatingDock />
+        </div>
+      )}
+      <LayersPanel />
       <FavoritesPanel />
       <Onboarding />
+      <Splash />
     </div>
   );
 }

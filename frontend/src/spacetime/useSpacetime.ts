@@ -9,25 +9,29 @@ type SpacetimeConnection = DbConnection & {
   procedures: Record<string, any>;
 };
 
-// Only subscribe to tables actually used by the frontend (9 of 21).
-// Skipped (unused): config, gtfs_agency, gtfs_calendar, gtfs_calendar_dates,
-// gtfs_feed_info, gtfs_routes, gtfs_shapes, gtfs_stop_times,
-// gtfs_stops, gtfs_transfers, gtfs_trips, stations
-const USED_TABLES = new Set([
+// Two-phase subscription to speed up first paint.
+// CRITICAL streams first: everything the map needs to render its default view
+// (stops, line traces, pricing zones, icons, live vehicles, alerts).
+const CRITICAL_TABLES = [
   'stops',
   'lines',
-  'vehicle_positions_current',
-  'line_icon_mapping',
   'pricing_zones',
+  'line_icon_mapping',
+  'vehicle_positions_current',
+  'alerts',
+];
+// DEFERRED streams once CRITICAL is applied: off-by-default layers (velov,
+// autopartage, toilets) and on-demand detail data (calls/journeys/name cache,
+// ingestion runs). Their hooks are `enabled`-gated so late arrival is fine.
+const DEFERRED_TABLES = [
   'estimated_calls_current',
   'estimated_vehicle_journeys_current',
   'stop_ref_name_cache',
-  'alerts',
   'ingestion_runs',
   'velov_stations',
   'autopartage_stations',
   'public_toilets',
-]);
+];
 
 export const useSpacetime = () => {
   const [conn, setConn] = useState<SpacetimeConnection | null>(null);
@@ -50,7 +54,13 @@ export const useSpacetime = () => {
             subscribed = true;
             db.subscriptionBuilder()
               .onApplied(() => {
-                // Subscription applied
+                // Critical data applied — now stream the deferred tables so
+                // they don't delay the first render.
+                db.subscriptionBuilder()
+                  .onError((_ctx: unknown, err: unknown) => {
+                    console.error('Deferred subscription error', err);
+                  })
+                  .subscribe(DEFERRED_TABLES.map((t) => `SELECT * FROM ${t}`));
               })
               .onError((_ctx: unknown, err: unknown) => {
                 console.error('Subscription error', err);
@@ -62,7 +72,7 @@ export const useSpacetime = () => {
                 retryTimer = window.setTimeout(connect, 1500);
               })
               .subscribe(
-                Array.from(USED_TABLES).map((t) => `SELECT * FROM ${t}`)
+                CRITICAL_TABLES.map((t) => `SELECT * FROM ${t}`)
               );
           }
         })

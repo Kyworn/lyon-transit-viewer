@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../../stores/useAppStore';
+import { usePanelDismiss } from '../../hooks/usePanelDismiss';
 
 interface LayerToggleProps {
   label: string;
@@ -106,6 +107,8 @@ export default function LayersPanel() {
     nightBusOnly,
     toggleNightBusOnly,
   } = useAppStore();
+
+  usePanelDismiss(layersPanelOpen, () => setLayersPanelOpen(false));
 
   const transit = [
     {
@@ -237,16 +240,15 @@ export default function LayersPanel() {
             }}
           />
           <motion.div
-            initial={{ y: 16, opacity: 0, scale: 0.98 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 16, opacity: 0, scale: 0.98 }}
+            initial={{ y: 16, x: '-50%', opacity: 0, scale: 0.98 }}
+            animate={{ y: 0, x: '-50%', opacity: 1, scale: 1 }}
+            exit={{ y: 16, x: '-50%', opacity: 0, scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 320, damping: 28 }}
             className="glass-panel"
             style={{
               position: 'absolute',
               bottom: '96px',
               left: '50%',
-              transform: 'translateX(-50%)',
               width: 'min(360px, calc(100vw - 32px))',
               zIndex: 200,
               padding: '16px',

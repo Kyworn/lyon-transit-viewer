@@ -108,6 +108,7 @@ export default function MapComponent() {
     vehiclesHeatmapVisible,
     nightBusOnly,
     userLocation,
+    setMapLoaded,
   } = useAppStore();
 
   const [isMapLoaded, setIsMapLoaded] = useState(false);
@@ -131,6 +132,18 @@ export default function MapComponent() {
   const { data: velovStations } = useVelov(velovVisible);
   const { data: autopartageStations } = useAutopartage(autopartageVisible);
   const { data: publicToilets } = usePublicToilets(toiletsVisible);
+
+  // Dismiss the Splash only once the core data layers (stops, line traces,
+  // pricing zones) have loaded AND painted (next `idle`). Armed once.
+  const splashArmedRef = useRef(false);
+  useEffect(() => {
+    if (splashArmedRef.current) return;
+    const m = map.current;
+    if (!m || !isMapLoaded) return;
+    if (stops.length === 0 || lines.length === 0 || (pricingZones?.length ?? 0) === 0) return;
+    splashArmedRef.current = true;
+    m.once('idle', () => setMapLoaded(true));
+  }, [isMapLoaded, stops.length, lines.length, pricingZones?.length, setMapLoaded]);
 
   // Initialize Map
   useEffect(() => {

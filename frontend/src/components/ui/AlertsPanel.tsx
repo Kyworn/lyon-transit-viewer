@@ -2,11 +2,17 @@ import React, { useMemo, useState } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
 import { useAlerts } from '../../hooks/useAlerts';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { usePanelDismiss, useSwipeToClose } from '../../hooks/usePanelDismiss';
 
 export default function AlertsPanel() {
   const { alertsPanelOpen, setAlertsPanelOpen } = useAppStore();
   const { data: alerts, isLoading } = useAlerts();
   const [search, setSearch] = useState('');
+  const { isMobile } = useBreakpoint();
+  const closeAlerts = () => setAlertsPanelOpen(false);
+  usePanelDismiss(alertsPanelOpen, closeAlerts);
+  const { panelProps, handleProps } = useSwipeToClose(isMobile, closeAlerts);
 
   const filteredAlerts = useMemo(() => {
     if (!alerts) return [];
@@ -28,7 +34,19 @@ export default function AlertsPanel() {
           exit={{ x: 424, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 220, damping: 28 }}
           className="alerts-panel-wrapper"
+          {...panelProps}
         >
+          {isMobile && (
+            <div
+              {...handleProps}
+              style={{
+                display: 'flex', justifyContent: 'center', padding: '10px 0 2px',
+                flexShrink: 0, ...handleProps.style,
+              }}
+            >
+              <span style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.25)' }} />
+            </div>
+          )}
           <style dangerouslySetInnerHTML={{ __html: `
             .alerts-panel-wrapper {
               position: absolute;

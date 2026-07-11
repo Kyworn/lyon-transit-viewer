@@ -4,6 +4,8 @@ import { useStops } from '../../hooks/useStops';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useAppStore } from '../../stores/useAppStore';
 import { useSpacetime } from '../../spacetime/useSpacetime';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { usePanelDismiss, useSwipeToClose } from '../../hooks/usePanelDismiss';
 
 interface Location {
   name: string;
@@ -41,6 +43,9 @@ interface RoutePlannerProps {
 }
 
 const RoutePlanner: React.FC<RoutePlannerProps> = ({ open, onClose }) => {
+  const { isMobile } = useBreakpoint();
+  usePanelDismiss(open, onClose);
+  const { panelProps, handleProps } = useSwipeToClose(isMobile, onClose);
   const { conn, connected } = useSpacetime();
   const [from, setFrom] = useState<Location | null>(null);
   const [to, setTo] = useState<Location | null>(null);
@@ -358,7 +363,19 @@ const RoutePlanner: React.FC<RoutePlannerProps> = ({ open, onClose }) => {
             display: 'flex',
             flexDirection: 'column',
           }}
+          {...panelProps}
         >
+          {isMobile && (
+            <div
+              {...handleProps}
+              style={{
+                display: 'flex', justifyContent: 'center', padding: '10px 0 2px',
+                flexShrink: 0, ...handleProps.style,
+              }}
+            >
+              <span style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.25)' }} />
+            </div>
+          )}
           <style dangerouslySetInnerHTML={{ __html: `
             @media (max-width: 768px) {
               .route-planner-container {

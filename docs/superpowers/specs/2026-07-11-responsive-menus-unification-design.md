@@ -65,8 +65,15 @@ panneaux et à tous les breakpoints, sans modifier l'apparence.
 
 Pour **chaque** panneau overlay :
 - **Mobile (<768)** : overlay plein écran (pattern déjà en place) avec, garantis,
-  **X + clic backdrop + Escape**. Ajout du bouton X manquant sur la Sidebar
-  mobile (fermeture standalone, distincte du bouton « aller à Itinéraire »).
+  **X + clic backdrop + Escape + swipe-down**. Ajout du bouton X manquant sur la
+  Sidebar mobile (fermeture standalone, distincte du bouton « aller à
+  Itinéraire »).
+- **Swipe-to-close (mobile uniquement)** : via framer-motion (déjà présent),
+  `drag="y"` sur le `motion` du panneau, `dragConstraints={{top:0,bottom:0}}`,
+  `dragElastic` vers le bas, `onDragEnd` : si `offset.y > 100` ou
+  `velocity.y > 500` → `onClose()`. Activé seulement si `isMobile`
+  (`drag={isMobile ? 'y' : false}`). Une petite poignée (grab handle) en haut du
+  sheet mobile signale l'affordance. Desktop : pas de drag.
 - **Desktop** : drawer latéral inchangé.
 - Pattern d'animation homogénéisé : gate `{open && <motion/>}` dans
   `AnimatePresence` partout, pour que l'exit joue (corrige les modals de détail
@@ -99,7 +106,6 @@ Pour **chaque** panneau overlay :
 
 ## Hors périmètre (YAGNI)
 
-- Swipe-to-close (X + backdrop suffisent).
 - Reconstruction des shells en composant `<OverlayPanel>` partagé : trop de
   risque de régression visuelle sur un design validé. On unifie le comportement,
   pas le markup.
@@ -126,4 +132,4 @@ Pour **chaque** panneau overlay :
 - Captures playwright (méthode CLI + `--load-storage`, éprouvée) à 3 viewports
   (390px, 768px, 1600px) montrant : chaque panneau ouvre/ferme via X, backdrop,
   Escape ; ouvrir un panneau ferme les autres ; dock entièrement accessible sur
-  mobile ; Sidebar mobile fermable.
+  mobile ; Sidebar mobile fermable ; swipe-down ferme sur mobile.

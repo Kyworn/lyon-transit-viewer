@@ -4,25 +4,16 @@ import { useAppStore } from '../../stores/useAppStore';
 export default function FloatingDock() {
   const {
     sidebarOpen,
-    setSidebarOpen,
     routePlannerOpen,
-    setRoutePlannerOpen,
     alertsPanelOpen,
-    setAlertsPanelOpen,
     dashboardOpen,
-    setDashboardOpen,
-    closeAllPanels,
     layersPanelOpen,
-    setLayersPanelOpen,
     favoritesPanelOpen,
-    setFavoritesPanelOpen,
+    togglePanel,
     setUserLocation,
     setCenterCoordinates,
     setZoom,
   } = useAppStore();
-
-  const toggleLayers = () => setLayersPanelOpen(!layersPanelOpen);
-  const toggleFavorites = () => setFavoritesPanelOpen(!favoritesPanelOpen);
 
   const locateMe = () => {
     if (!navigator.geolocation) return;
@@ -38,35 +29,11 @@ export default function FloatingDock() {
     );
   };
 
-  const toggleSidebar = () => {
-    const next = !sidebarOpen;
-    closeAllPanels();
-    setSidebarOpen(next);
-  };
-
-  const toggleRoutePlanner = () => {
-    const next = !routePlannerOpen;
-    closeAllPanels();
-    setRoutePlannerOpen(next);
-  };
-
-  const toggleAlerts = () => {
-    const next = !alertsPanelOpen;
-    closeAllPanels();
-    setAlertsPanelOpen(next);
-  };
-
-  const toggleDashboard = () => {
-    const next = !dashboardOpen;
-    closeAllPanels();
-    setDashboardOpen(next);
-  };
-
   const items = [
     {
       label: 'Explorer',
       isActive: sidebarOpen,
-      onClick: toggleSidebar,
+      onClick: () => togglePanel('sidebar'),
       color: 'var(--primary)',
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -78,7 +45,7 @@ export default function FloatingDock() {
     {
       label: 'Itinéraire',
       isActive: routePlannerOpen,
-      onClick: toggleRoutePlanner,
+      onClick: () => togglePanel('routePlanner'),
       color: 'var(--accent)',
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -92,7 +59,7 @@ export default function FloatingDock() {
     {
       label: 'Alertes',
       isActive: alertsPanelOpen,
-      onClick: toggleAlerts,
+      onClick: () => togglePanel('alerts'),
       color: 'var(--danger)',
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -104,7 +71,7 @@ export default function FloatingDock() {
     {
       label: 'Stats',
       isActive: dashboardOpen,
-      onClick: toggleDashboard,
+      onClick: () => togglePanel('dashboard'),
       color: 'var(--secondary)',
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -118,7 +85,7 @@ export default function FloatingDock() {
     {
       label: 'Couches',
       isActive: layersPanelOpen,
-      onClick: toggleLayers,
+      onClick: () => togglePanel('layers'),
       color: '#06b6d4',
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -131,7 +98,7 @@ export default function FloatingDock() {
     {
       label: 'Favoris',
       isActive: favoritesPanelOpen,
-      onClick: toggleFavorites,
+      onClick: () => togglePanel('favorites'),
       color: '#facc15',
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1">
@@ -158,7 +125,7 @@ export default function FloatingDock() {
   ];
 
   return (
-    <div className="glass-panel" style={{
+    <div className="glass-panel dock-scroll" style={{
       display: 'flex',
       alignItems: 'center',
       gap: '8px',
@@ -167,6 +134,11 @@ export default function FloatingDock() {
       pointerEvents: 'auto',
       border: '1px solid var(--border-light)',
       boxShadow: 'var(--glass-shadow)',
+      // On narrow screens the 7 buttons overflow the viewport: scroll instead of
+      // clipping. maxWidth keeps the pill within the screen; the row stays single.
+      maxWidth: 'calc(100vw - 24px)',
+      overflowX: 'auto',
+      overflowY: 'hidden',
     }}>
       {items.map((item, index) => (
         <React.Fragment key={item.label}>
@@ -175,6 +147,7 @@ export default function FloatingDock() {
             style={{
               width: '56px',
               height: '56px',
+              flexShrink: 0,
               borderRadius: '50%',
               display: 'flex',
               flexDirection: 'column',
@@ -211,6 +184,7 @@ export default function FloatingDock() {
             <div style={{
               width: '1px',
               height: '24px',
+              flexShrink: 0,
               backgroundColor: 'rgba(255,255,255,0.08)',
             }} />
           )}

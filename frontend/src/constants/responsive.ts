@@ -12,6 +12,12 @@ export const BREAKPOINTS = {
   xl: 1536,
 } as const;
 
+// Single source of truth for the "phone / full-screen sheet" boundary.
+// Aligned with the media queries the panels already use so layouts don't shift.
+// Anything with width <= MOBILE_MAX renders panels as full-screen dismissible
+// overlays (X + backdrop + Escape + swipe-down); above it, side drawers.
+export const MOBILE_MAX = 768;
+
 // Responsive dimensions
 export const DIMENSIONS = {
   // Header heights

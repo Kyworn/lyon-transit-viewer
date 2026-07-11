@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../../stores/useAppStore';
 import { useLines } from '../../hooks/useLines';
 import { useStops } from '../../hooks/useStops';
+import { usePanelDismiss } from '../../hooks/usePanelDismiss';
 
 export default function FavoritesPanel() {
   const {
@@ -19,6 +20,7 @@ export default function FavoritesPanel() {
   } = useAppStore();
   const { data: lines } = useLines({ enabled: favoritesPanelOpen });
   const { data: stops } = useStops(favoritesPanelOpen);
+  usePanelDismiss(favoritesPanelOpen, () => setFavoritesPanelOpen(false));
 
   const favLines = lines.filter((l) => favoriteLines.includes(l.line_sort_code || l.id));
   const favStops = stops.filter((s) => favoriteStops.includes(s.id));

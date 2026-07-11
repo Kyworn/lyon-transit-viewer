@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSpacetime } from '../../spacetime/useSpacetime';
+import { usePanelDismiss } from '../../hooks/usePanelDismiss';
 
 type IngestionRunRow = {
   startedAt: { microsSinceUnixEpoch: bigint };
@@ -20,6 +21,7 @@ interface AdminDashboardProps {
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   const { conn, connected } = useSpacetime();
+  usePanelDismiss(true, onClose); // always mounted only while open
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -77,7 +79,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   }, [conn, connected]);
 
   return (
-    <div style={{
+    <div
+      onClick={onClose}
+      style={{
       position: 'fixed',
       inset: 0,
       width: '100vw',
@@ -140,7 +144,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
         }
       ` }} />
 
-      <div className="admin-dashboard-panel">
+      <div className="admin-dashboard-panel" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={{
           padding: '24px 32px',

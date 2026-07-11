@@ -4,6 +4,27 @@ import { Stop, Line, Vehicle } from '../types';
 
 export type ThemeMode = 'dark' | 'light';
 
+export type PanelName =
+  | 'sidebar'
+  | 'alerts'
+  | 'dashboard'
+  | 'adminDashboard'
+  | 'routePlanner'
+  | 'layers'
+  | 'favorites';
+
+// Maps a logical panel name to its store flag. Single source of truth so dock,
+// header, and any other trigger open/close panels identically.
+const PANEL_FLAG: Record<PanelName, keyof AppState> = {
+  sidebar: 'sidebarOpen',
+  alerts: 'alertsPanelOpen',
+  dashboard: 'dashboardOpen',
+  adminDashboard: 'adminDashboardOpen',
+  routePlanner: 'routePlannerOpen',
+  layers: 'layersPanelOpen',
+  favorites: 'favoritesPanelOpen',
+};
+
 export interface AppState {
   /* Selection & Navigation State */
   selectedItem: any; // Can be Vehicle or Stop
@@ -17,6 +38,10 @@ export interface AppState {
   /* Favorites State */
   favoriteLines: string[]; // line_sort_code
   favoriteStops: string[]; // stop id
+
+  /* Map readiness (drives the Splash overlay) */
+  mapLoaded: boolean;
+  setMapLoaded: (loaded: boolean) => void;
 
   /* Panel/Modal Open States */
   sidebarOpen: boolean;
@@ -64,6 +89,8 @@ export interface AppState {
   setAdminDashboardOpen: (open: boolean) => void;
   setRoutePlannerOpen: (open: boolean) => void;
   closeAllPanels: () => void;
+  /* Open one panel (closing every other). Toggles closed if already open. */
+  togglePanel: (name: PanelName) => void;
 
   /* Layer Actions */
   toggleVehicles: () => void;
@@ -97,6 +124,8 @@ export const useAppStore = create<AppState>()(
       
       favoriteLines: [],
       favoriteStops: [],
+
+      mapLoaded: false,
 
       sidebarOpen: false,
       alertsPanelOpen: false,
@@ -160,8 +189,16 @@ export const useAppStore = create<AppState>()(
         alertsPanelOpen: false,
         dashboardOpen: false,
         adminDashboardOpen: false,
-        routePlannerOpen: false
+        routePlannerOpen: false,
+        layersPanelOpen: false,
+        favoritesPanelOpen: false
       }),
+      togglePanel: (name) => {
+        const flag = PANEL_FLAG[name];
+        const willOpen = !get()[flag];
+        get().closeAllPanels();
+        if (willOpen) set({ [flag]: true } as Partial<AppState>);
+      },
 
       /* Layer Setters */
       toggleVehicles: () => set((state) => ({ vehiclesVisible: !state.vehiclesVisible })),
@@ -173,6 +210,7 @@ export const useAppStore = create<AppState>()(
       toggleVehiclesHeatmap: () => set((state) => ({ vehiclesHeatmapVisible: !state.vehiclesHeatmapVisible })),
       toggleNightBusOnly: () => set((state) => ({ nightBusOnly: !state.nightBusOnly })),
       setUserLocation: (loc) => set({ userLocation: loc }),
+      setMapLoaded: (loaded) => set({ mapLoaded: loaded }),
       setLayersPanelOpen: (open) => set({ layersPanelOpen: open }),
       setFavoritesPanelOpen: (open) => set({ favoritesPanelOpen: open }),
 
