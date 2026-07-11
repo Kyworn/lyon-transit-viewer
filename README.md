@@ -59,19 +59,9 @@ python3 -m http.server 3001 --bind 127.0.0.1 -d build
   - UI trajet + alertes + stats
 ```
 
-## Captures
 
-### Interface Principale
-![Interface Principale](screenshots/main_interface.png)
 
-### Recherche de trajet
-![Ligne de Metro](screenshots/metro_line_view.png)
 
-### Details Trajet
-![Details Station](screenshots/stop_details.png)
-
-### Dashboard
-![Alertes](screenshots/alerts_panel.png)
 
 ### Suivi Vehicules
 ![Suivi Vehicules](screenshots/vehicle_tracking.png)
