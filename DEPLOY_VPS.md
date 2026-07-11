@@ -170,12 +170,22 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST \
 ss -ltnp | rg ':3000|:3001'
 spacetime sql --server local lyon-transit "select count(*) from lines"
 spacetime sql --server local lyon-transit "select id,job_name,status,rows_upserted,error from ingestion_runs order by id desc limit 20"
+
+# Route WebSocket a travers le tunnel (doit renvoyer 101 Switching Protocols,
+# jamais 403/404). C'est l'assise du single-hostname : si ca casse, le front
+# affiche une carte vide derriere le splash sans erreur visible.
+curl -s -o /dev/null -w "%{http_code}\n" \
+  -H "Connection: Upgrade" -H "Upgrade: websocket" \
+  -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: dGhlIHNhbXBsZQ==" \
+  "https://tcl.zorko.xyz/v1/database/lyon-transit/subscribe"          # 101 attendu
 ```
 
-Tester depuis le frontend:
-- chargement map
-- stats non nulles
-- calcul d'itineraire fonctionnel
+Gate go/no-go depuis le navigateur (les codes curl valident le routage, PAS
+que l'app marche — le WS et les donnees se verifient a l'oeil) :
+- ouvrir `https://tcl.zorko.xyz`
+- la carte **se peuple** (arrets/lignes/zones apparaissent) avant le fallback splash 12s — sinon le WS ne passe pas
+- un calcul d'itineraire renvoie un trajet (exerce `call/calculate_journey` de bout en bout)
+- exactement **5 labels de zone** (1 a 5), un par zone
 
 ---
 
