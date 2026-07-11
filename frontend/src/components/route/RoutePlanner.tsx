@@ -14,6 +14,13 @@ interface Location {
   type: 'stop' | 'address';
 }
 
+function photonLabel(p: any): string {
+  if (!p) return '';
+  const line1 = [p.housenumber, p.street].filter(Boolean).join(' ');
+  const parts = [p.name && p.name !== p.street ? p.name : null, line1 || null, p.city || p.town || p.village || null].filter(Boolean);
+  return parts.join(', ') || p.name || 'Adresse';
+}
+
 interface RouteSection {
   type: string;
   arrival: string;
@@ -154,22 +161,15 @@ const RoutePlanner: React.FC<RoutePlannerProps> = ({ open, onClose }) => {
     }
 
     try {
-      const mapboxToken = import.meta.env.REACT_APP_MAPBOX_TOKEN;
       const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?` +
-        `access_token=${mapboxToken}&` +
-        `proximity=4.835,45.764&` +
-        `bbox=4.7,45.7,4.95,45.82&` +
-        `limit=5&` +
-        `language=fr`
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&lat=45.764&lon=4.835&bbox=4.7,45.7,4.95,45.82&limit=5&lang=fr`
       );
-
       if (response.ok) {
         const data = await response.json();
-        const suggestions: Location[] = data.features.map((feature: any) => ({
-          name: feature.place_name,
-          lng: feature.center[0],
-          lat: feature.center[1],
+        const suggestions: Location[] = (data.features || []).map((feature: any) => ({
+          name: photonLabel(feature.properties),
+          lng: feature.geometry.coordinates[0],
+          lat: feature.geometry.coordinates[1],
           type: 'address' as const,
         }));
         setAddressSuggestions(suggestions);
@@ -205,14 +205,8 @@ const RoutePlanner: React.FC<RoutePlannerProps> = ({ open, onClose }) => {
 
     if (searchText && searchText.length >= 3) {
       try {
-        const mapboxToken = import.meta.env.REACT_APP_MAPBOX_TOKEN;
         const response = await fetch(
-          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchText)}.json?` +
-          `access_token=${mapboxToken}&` +
-          `proximity=4.835,45.764&` +
-          `bbox=4.7,45.7,4.95,45.82&` +
-          `limit=1&` +
-          `language=fr`
+          `https://photon.komoot.io/api/?q=${encodeURIComponent(searchText)}&lat=45.764&lon=4.835&bbox=4.7,45.7,4.95,45.82&limit=1&lang=fr`
         );
 
         if (response.ok) {
@@ -220,9 +214,9 @@ const RoutePlanner: React.FC<RoutePlannerProps> = ({ open, onClose }) => {
           if (data.features && data.features.length > 0) {
             const feature = data.features[0];
             return {
-              name: feature.place_name,
-              lng: feature.center[0],
-              lat: feature.center[1],
+              name: photonLabel(feature.properties),
+              lng: feature.geometry.coordinates[0],
+              lat: feature.geometry.coordinates[1],
               type: 'address',
             };
           }

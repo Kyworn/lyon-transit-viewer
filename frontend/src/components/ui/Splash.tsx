@@ -7,7 +7,7 @@ import { useAppStore } from '../../stores/useAppStore';
  * Branded loading overlay shown until the map has actually rendered.
  * Deliberately does NOT subscribe to individual tables: a late-mounting
  * consumer misses the initial insert burst, so per-table counts stall.
- * Gates on `mapLoaded` (set on Mapbox's first `idle`) so the loader never
+ * Gates on `mapLoaded` (set on MapLibre's first `idle`) so the loader never
  * finishes before the map is visibly ready. Hard fallback so it can't trap
  * the user. All animation is transform/opacity (GPU, no jank).
  */

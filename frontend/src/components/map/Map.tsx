@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import mapboxgl, { Map as MapboxMap } from 'mapbox-gl';
+import maplibregl, { Map as MaplibreMap } from 'maplibre-gl';
 import { useAppStore } from '../../stores/useAppStore';
 import { useStops } from '../../hooks/useStops';
 import { useVehicles } from '../../hooks/useVehicles';
@@ -19,12 +19,7 @@ import { createVehicleMarker, loadSVGMarker } from '../../utils/createVehicleMar
 import { createStopMarker, loadStopMarker } from '../../utils/createStopMarker';
 import { createMobilityMarker, loadMobilityMarker } from '../../utils/createMobilityMarker';
 import { Stop, Vehicle } from '../../types';
-import 'mapbox-gl/dist/mapbox-gl.css';
-
-const mapboxToken = import.meta.env.REACT_APP_MAPBOX_TOKEN;
-if (mapboxToken) {
-  mapboxgl.accessToken = mapboxToken;
-}
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 // Helper functions for parsing and normalizations
 const normalizeMapColor = (value?: string | null) => {
@@ -79,7 +74,7 @@ const extractDirection = (service: string) => {
 };
 
 export default function MapComponent() {
-  const map = useRef<MapboxMap | null>(null);
+  const map = useRef<MaplibreMap | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const loadedIconsRef = useRef<Set<string>>(new Set());
   const isProgrammaticFlightRef = useRef(false);
@@ -147,12 +142,12 @@ export default function MapComponent() {
 
   // Initialize Map
   useEffect(() => {
-    if (!mapboxToken || !containerRef.current || map.current) return;
+    if (!containerRef.current || map.current) return;
 
     try {
-      const mapInstance = new mapboxgl.Map({
+      const mapInstance = new maplibregl.Map({
         container: containerRef.current,
-        style: 'mapbox://styles/mapbox/dark-v11',
+        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
         center: centerCoordinates ? [centerCoordinates.lng, centerCoordinates.lat] : [4.8357, 45.7640],
         zoom: zoom,
         pitch: 50,
@@ -191,7 +186,7 @@ export default function MapComponent() {
         }
       });
     } catch (err) {
-      console.error('Mapbox initialization failed:', err);
+      console.error('MapLibre initialization failed:', err);
     }
 
     return () => {
@@ -243,7 +238,7 @@ export default function MapComponent() {
 
     const sourceData: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features };
 
-    // One label per zone number. Mapbox's polygon symbol placement can emit a
+    // One label per zone number. MapLibre's polygon symbol placement can emit a
     // label per ring/part, so we render labels from a dedicated point source
     // (area-centroid of the zone outer ring) — guarantees exactly one "Zone N".
     const areaCentroid = (ring: number[][]): [number, number] => {
@@ -308,10 +303,10 @@ export default function MapComponent() {
       /* default */ '#a78bfa',
     ];
 
-    const source = mapInstance.getSource('pricing-zones') as mapboxgl.GeoJSONSource;
+    const source = mapInstance.getSource('pricing-zones') as maplibregl.GeoJSONSource;
     if (source) {
       source.setData(sourceData);
-      const labelSrc = mapInstance.getSource('pricing-zone-labels') as mapboxgl.GeoJSONSource;
+      const labelSrc = mapInstance.getSource('pricing-zone-labels') as maplibregl.GeoJSONSource;
       if (labelSrc) labelSrc.setData(labelData);
       try {
         mapInstance.setPaintProperty('pricing-zones-fill', 'fill-color', fillColor);
@@ -397,7 +392,7 @@ export default function MapComponent() {
       }).filter(f => f.geometry),
     };
 
-    const source = mapInstance.getSource('lines') as mapboxgl.GeoJSONSource;
+    const source = mapInstance.getSource('lines') as maplibregl.GeoJSONSource;
     if (source) {
       source.setData(sourceData);
     } else {
@@ -525,7 +520,7 @@ export default function MapComponent() {
       }),
     };
 
-    const source = mapInstance.getSource('stops-source') as mapboxgl.GeoJSONSource;
+    const source = mapInstance.getSource('stops-source') as maplibregl.GeoJSONSource;
     if (source) {
       source.setData(stopsGeoJSON);
     } else {
@@ -590,7 +585,7 @@ export default function MapComponent() {
     const mapInstance = map.current;
 
     if (!vehicles || vehicles.length === 0) {
-      const source = mapInstance.getSource('vehicles-source') as mapboxgl.GeoJSONSource;
+      const source = mapInstance.getSource('vehicles-source') as maplibregl.GeoJSONSource;
       if (source) {
         source.setData({ type: 'FeatureCollection', features: [] });
       }
@@ -662,7 +657,7 @@ export default function MapComponent() {
 
     const updateVehiclesSource = (geojson?: GeoJSON.FeatureCollection) => {
       const data = geojson ?? buildGeoJSON(1);
-      const source = mapInstance.getSource('vehicles-source') as mapboxgl.GeoJSONSource;
+      const source = mapInstance.getSource('vehicles-source') as maplibregl.GeoJSONSource;
       if (source) {
         source.setData(data);
         if (mapInstance.getLayer('vehicles-layer')) {
@@ -820,7 +815,7 @@ export default function MapComponent() {
       })),
     };
 
-    const src = m.getSource(SRC) as mapboxgl.GeoJSONSource | undefined;
+    const src = m.getSource(SRC) as maplibregl.GeoJSONSource | undefined;
     if (src) {
       src.setData(fc);
     } else {
@@ -915,7 +910,7 @@ export default function MapComponent() {
       }],
     };
 
-    const src = m.getSource(SRC) as mapboxgl.GeoJSONSource | undefined;
+    const src = m.getSource(SRC) as maplibregl.GeoJSONSource | undefined;
     if (src) {
       src.setData(fc);
     } else {
@@ -969,11 +964,11 @@ export default function MapComponent() {
   useEffect(() => {
     if (!isMapLoaded || !map.current) return;
     const m = map.current;
-    let popup: mapboxgl.Popup | null = null;
+    let popup: maplibregl.Popup | null = null;
 
-    const showPopup = (lngLat: mapboxgl.LngLatLike, html: string) => {
+    const showPopup = (lngLat: maplibregl.LngLatLike, html: string) => {
       if (popup) popup.remove();
-      popup = new mapboxgl.Popup({ closeButton: true, closeOnClick: true, offset: 14, className: 'mobility-popup' })
+      popup = new maplibregl.Popup({ closeButton: true, closeOnClick: true, offset: 14, className: 'mobility-popup' })
         .setLngLat(lngLat)
         .setHTML(html)
         .addTo(m);
@@ -1142,7 +1137,7 @@ export default function MapComponent() {
 
     ensureIcons().then(() => {
       if (!map.current) return;
-      const src = m.getSource(SRC) as mapboxgl.GeoJSONSource | undefined;
+      const src = m.getSource(SRC) as maplibregl.GeoJSONSource | undefined;
       if (src) {
         src.setData(fc);
       } else {
@@ -1221,7 +1216,7 @@ export default function MapComponent() {
 
     ensureIcon().then(() => {
       if (!map.current) return;
-      const src = m.getSource(SRC) as mapboxgl.GeoJSONSource | undefined;
+      const src = m.getSource(SRC) as maplibregl.GeoJSONSource | undefined;
       if (src) {
         src.setData(fc);
       } else {
@@ -1396,8 +1391,8 @@ export default function MapComponent() {
     const coords = activeSection?.geojson?.coordinates;
     if (coords?.length > 1) {
       const bounds = coords.reduce(
-        (b: mapboxgl.LngLatBounds, c: number[]) => b.extend([c[0], c[1]] as [number, number]),
-        new mapboxgl.LngLatBounds([coords[0][0], coords[0][1]], [coords[0][0], coords[0][1]])
+        (b: maplibregl.LngLatBounds, c: number[]) => b.extend([c[0], c[1]] as [number, number]),
+        new maplibregl.LngLatBounds([coords[0][0], coords[0][1]], [coords[0][0], coords[0][1]])
       );
       mapInstance.fitBounds(bounds, { padding: 80, maxZoom: 16, duration: 800 });
     } else if (routeFeatures.length > 0) {
@@ -1405,8 +1400,8 @@ export default function MapComponent() {
       const allCoords = sections.flatMap((s: any) => s.geojson?.coordinates || []);
       if (allCoords.length > 1) {
         const bounds = allCoords.reduce(
-          (b: mapboxgl.LngLatBounds, c: number[]) => b.extend([c[0], c[1]] as [number, number]),
-          new mapboxgl.LngLatBounds([allCoords[0][0], allCoords[0][1]], [allCoords[0][0], allCoords[0][1]])
+          (b: maplibregl.LngLatBounds, c: number[]) => b.extend([c[0], c[1]] as [number, number]),
+          new maplibregl.LngLatBounds([allCoords[0][0], allCoords[0][1]], [allCoords[0][0], allCoords[0][1]])
         );
         mapInstance.fitBounds(bounds, { padding: 80, maxZoom: 15, duration: 1000 });
       }
@@ -1448,7 +1443,7 @@ export default function MapComponent() {
     if (!isMapLoaded || !map.current) return;
     const mapInstance = map.current;
 
-    const onMapClick = (e: mapboxgl.MapMouseEvent) => {
+    const onMapClick = (e: maplibregl.MapMouseEvent) => {
       // 1. Check vehicles click
       if (mapInstance.getLayer('vehicles-layer')) {
         const vehicleFeatures = mapInstance.queryRenderedFeatures(e.point, { layers: ['vehicles-layer'] });

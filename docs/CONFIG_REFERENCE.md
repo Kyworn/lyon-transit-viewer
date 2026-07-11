@@ -4,8 +4,7 @@
 
 | Variable | Required | Example | Description |
 |---|---|---|---|
-| `REACT_APP_MAPBOX_TOKEN` | Yes | `pk.ey...` | Token Mapbox pour affichage carte. |
-| `REACT_APP_SPACETIMEDB_URI` | Yes | `http://127.0.0.1:3000` | Endpoint HTTP/WS SpacetimeDB. |
+| `REACT_APP_SPACETIMEDB_URI` | Yes | `http://127.0.0.1:3000` | Endpoint HTTP/WS SpacetimeDB. En prod publique: `https://tcl.zorko.xyz`. |
 | `REACT_APP_SPACETIMEDB_DB` | Yes | `lyon-transit` | Nom de la base SpacetimeDB cible. |
 | `GENERATE_SOURCEMAP` | No | `false` | Desactive sourcemaps en build prod. |
 

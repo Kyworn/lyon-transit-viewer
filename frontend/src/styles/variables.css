@@ -95,19 +95,19 @@ body {
   border-color: rgba(255, 255, 255, 0.12);
 }
 
-/* Mapbox controls — keep attribution + logo pinned to viewport bottom */
-.mapboxgl-ctrl-bottom-left,
-.mapboxgl-ctrl-bottom-right {
+/* MapLibre controls — keep attribution + logo pinned to viewport bottom */
+.maplibregl-ctrl-bottom-left,
+.maplibregl-ctrl-bottom-right {
   bottom: 0 !important;
   z-index: 1;
 }
 
-.mapboxgl-ctrl-bottom-left .mapboxgl-ctrl,
-.mapboxgl-ctrl-bottom-right .mapboxgl-ctrl {
+.maplibregl-ctrl-bottom-left .maplibregl-ctrl,
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl {
   margin: 0 6px 4px 6px;
 }
 
-.mapboxgl-ctrl-attrib {
+.maplibregl-ctrl-attrib {
   background: rgba(10, 10, 12, 0.5) !important;
   backdrop-filter: blur(8px);
   border-radius: 4px 4px 0 0;
@@ -115,17 +115,17 @@ body {
   padding: 2px 6px;
 }
 
-.mapboxgl-ctrl-attrib a,
-.mapboxgl-ctrl-attrib {
+.maplibregl-ctrl-attrib a,
+.maplibregl-ctrl-attrib {
   color: var(--text-muted) !important;
 }
 
-/* Mapbox Popup theming — match glass-panel aesthetic */
-.mapboxgl-popup.mobility-popup {
+/* MapLibre Popup theming — match glass-panel aesthetic */
+.maplibregl-popup.mobility-popup {
   max-width: 320px !important;
 }
 
-.mapboxgl-popup.mobility-popup .mapboxgl-popup-content {
+.maplibregl-popup.mobility-popup .maplibregl-popup-content {
   background: rgba(10, 10, 12, 0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -138,21 +138,21 @@ body {
   box-sizing: border-box;
 }
 
-.mapboxgl-popup.mobility-popup .mapboxgl-popup-content > * {
+.maplibregl-popup.mobility-popup .maplibregl-popup-content > * {
   box-sizing: border-box;
   max-width: 100%;
 }
 
-.mapboxgl-popup.mobility-popup .mob-card {
+.maplibregl-popup.mobility-popup .mob-card {
   width: 100%;
 }
 
-.mapboxgl-popup.mobility-popup .mapboxgl-popup-tip {
+.maplibregl-popup.mobility-popup .maplibregl-popup-tip {
   border-top-color: rgba(10, 10, 12, 0.92);
   border-bottom-color: rgba(10, 10, 12, 0.92);
 }
 
-.mapboxgl-popup.mobility-popup .mapboxgl-popup-close-button {
+.maplibregl-popup.mobility-popup .maplibregl-popup-close-button {
   color: var(--text-secondary);
   font-size: 16px;
   line-height: 1;
@@ -163,7 +163,7 @@ body {
   background: transparent;
 }
 
-.mapboxgl-popup.mobility-popup .mapboxgl-popup-close-button:hover {
+.maplibregl-popup.mobility-popup .maplibregl-popup-close-button:hover {
   color: var(--accent);
   background: rgba(255, 255, 255, 0.05);
 }

@@ -1,6 +1,8 @@
 use spacetimedb::{table, Timestamp};
 
-#[table(accessor = config, public)]
+// Private table: holds the base64 TCL API token (email:password). Must NOT be
+// client-subscribable — procedures access it server-side regardless of this flag.
+#[table(accessor = config)]
 pub struct Config {
     #[primary_key]
     pub id: u64,

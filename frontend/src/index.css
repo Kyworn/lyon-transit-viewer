@@ -42,12 +42,12 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 2px var(--primary-glow) !important;
 }
 
-/* Mapbox Control Relocations (to not overlap with floating mobile docks) */
-.mapboxgl-ctrl-bottom-right {
+/* MapLibre Control Relocations (to not overlap with floating mobile docks) */
+.maplibregl-ctrl-bottom-right {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 84px) !important;
 }
 
-.mapboxgl-ctrl-bottom-left {
+.maplibregl-ctrl-bottom-left {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 84px) !important;
 }
 

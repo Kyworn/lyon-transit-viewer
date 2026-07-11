@@ -3,7 +3,7 @@
 Visualisation temps reel du reseau TCL (Lyon) avec calcul d'itineraire multimodal.
 
 - Backend: module Rust sur SpacetimeDB (ingestion + procedures).
-- Frontend: React + Mapbox + subscriptions SpacetimeDB.
+- Frontend: React + MapLibre GL (tuiles CARTO, sans cle) + subscriptions SpacetimeDB.
 
 ## Quickstart Local
 
@@ -12,7 +12,7 @@ git clone https://github.com/Kyworn/lyon-transit-viewer.git
 cd lyon-transit-viewer
 
 cp frontend/.env.example frontend/.env
-# puis renseigner REACT_APP_MAPBOX_TOKEN dans frontend/.env
+# aucune cle a renseigner: MapLibre + tuiles CARTO sont sans token
 
 spacetime start --listen-addr 127.0.0.1:3000
 spacetime publish --server local --module-path spacetimedb/spacetimedb --yes lyon-transit
@@ -55,7 +55,7 @@ python3 -m http.server 3001 --bind 127.0.0.1 -d build
                v
 [ Frontend React ]
   - subscriptions WS
-  - carte Mapbox
+  - carte MapLibre GL
   - UI trajet + alertes + stats
 ```
 

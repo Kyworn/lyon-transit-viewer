@@ -39,7 +39,7 @@ export default function App() {
   } = useAppStore();
 
   const { isMobile } = useBreakpoint();
-  // Defer the Mapbox WebGL mount until connected so its main-thread freeze
+  // Defer the MapLibre WebGL mount until connected so its main-thread freeze
   // happens under the Splash overlay instead of stuttering visible UI.
   const { connected } = useSpacetime();
   // On mobile, fullscreen panels are immersive: hide the floating Header + Dock
@@ -80,7 +80,7 @@ export default function App() {
       {/* 2. Global Premium Header Nav Fix (Floating Overlay) */}
       {!hideChrome && <Header />}
 
-      {/* 3. Main Coordinates Workspace (Sidebar overlaying Mapbox Canvas) */}
+      {/* 3. Main Coordinates Workspace (Sidebar overlaying MapLibre Canvas) */}
       <div style={{
         position: 'absolute',
         inset: 0,
@@ -91,7 +91,7 @@ export default function App() {
         {/* Unified Search/Details Navigation Drawer */}
         <Sidebar />
 
-        {/* Dynamic Mapbox Rendering Layer */}
+        {/* Dynamic MapLibre Rendering Layer */}
         <div style={{ flex: 1, position: 'relative', height: '100%' }}>
           {connected && <MapComponent />}
         </div>

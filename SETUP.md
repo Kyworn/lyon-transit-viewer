@@ -6,8 +6,9 @@
 - Node.js + npm
 - `curl` (pour invoquer les procedures via HTTP)
 - Python 3 (pour servir le build frontend)
-- Token Mapbox
 - Identifiants TCL (`email:password`) pour ingestion realtime
+
+> Carte: MapLibre GL + tuiles CARTO, sans cle API — aucun token a fournir.
 
 Verification rapide:
 
@@ -35,7 +36,6 @@ cp frontend/.env.example frontend/.env
 Editer `frontend/.env`:
 
 ```env
-REACT_APP_MAPBOX_TOKEN=your_mapbox_token_here
 REACT_APP_SPACETIMEDB_URI=http://127.0.0.1:3000
 REACT_APP_SPACETIMEDB_DB=lyon-transit
 GENERATE_SOURCEMAP=false
@@ -144,13 +144,13 @@ curl -X POST http://127.0.0.1:3000/v1/database/lyon-transit/call/calculate_journ
 
 ## 9) Troubleshooting
 
-### A) Mapbox token absent
+### A) Carte vide / tuiles absentes
 
 Symptome:
-- `Mapbox access token is not set`
+- fond de carte gris, aucune tuile
 
 Action:
-- verifier `frontend/.env`
+- verifier l'acces reseau a `basemaps.cartocdn.com` (tuiles CARTO)
 - refaire `npm run build`
 - hard refresh navigateur (`Ctrl+Shift+R`)
 
