@@ -24,14 +24,14 @@ export const DIMENSIONS = {
   // Sidebar widths
   sidebar: {
     mobile: '100vw', // Full width on mobile
-    tablet: 360,
-    desktop: 400,
+    tablet: 380,
+    desktop: 440,
     collapsed: 0,
   },
 
   // Bottom navigation
   bottomNav: {
-    height: 64,
+    height: { xs: 80, md: 88 },
   },
 
   // FABs
@@ -59,13 +59,33 @@ export const DIMENSIONS = {
 // Z-index layers
 export const Z_INDEX = {
   map: 0,
-  mapControls: 1150, // Above sidebar (1100)
-  sidebar: 1100,
+  mapControls: 1150,
+  sidebar: 1300, // Above dock on mobile
   header: 1200,
   bottomNav: 1250,
-  drawer: 1300,
-  modal: 1400,
-  snackbar: 1500,
+  drawer: 1400,
+  modal: 1500,
+  snackbar: 1600,
+} as const;
+
+// Aura Design Tokens (2026)
+export const AURA_TOKENS = {
+  glass: {
+    dark: 'rgba(10, 10, 12, 0.72)',
+    light: 'rgba(255, 255, 255, 0.04)',
+    border: 'rgba(255, 255, 255, 0.08)',
+    blur: '24px',
+  },
+  glow: {
+    primary: 'rgba(14, 165, 233, 0.25)',
+    secondary: 'rgba(249, 115, 22, 0.2)',
+    success: 'rgba(34, 197, 94, 0.2)',
+  },
+  borderRadius: {
+    panel: 32,
+    widget: 24,
+    button: 16,
+  }
 } as const;
 
 // Media queries helpers

@@ -1,12 +1,11 @@
-// @ts-nocheck
 import { DbConnection } from './index';
 
 let connection: DbConnection | null = null;
 let connecting: Promise<DbConnection> | null = null;
 
 const getConfig = () => {
-  const uri = process.env.REACT_APP_SPACETIMEDB_URI || 'http://127.0.0.1:3000';
-  const dbName = process.env.REACT_APP_SPACETIMEDB_DB || 'lyon-transit';
+  const uri = import.meta.env.REACT_APP_SPACETIMEDB_URI || 'http://127.0.0.1:3000';
+  const dbName = import.meta.env.REACT_APP_SPACETIMEDB_DB || 'lyon-transit';
   return { uri, dbName };
 };
 

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useSpacetime } from '../spacetime/useSpacetime';
+import { useThrottledTableSubscription } from './useThrottledTableSubscription';
 import { Line } from '../types';
 
 type UseLinesOptions = {
@@ -11,7 +12,7 @@ export const useLines = (options: UseLinesOptions = {}) => {
   const { enabled = true, includeTrace = false } = options;
   const { conn, connected, error } = useSpacetime();
   const [data, setData] = useState<Line[]>([]);
-  const [fluvialLines, setFluvialLines] = useState<Line[]>([]);
+  const fluvialLinesRef = useRef<Line[]>([]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -40,13 +41,21 @@ export const useLines = (options: UseLinesOptions = {}) => {
           direction: f?.properties?.sens || '',
           line_type_name: f?.properties?.nom_type_ligne || 'Régulière',
         }));
-        if (!disposed) setFluvialLines(mapped);
-      } catch (e) {
-        if (!disposed && (e as Error).name !== 'AbortError') {
-          // silent fallback: keep realtime/static lines only
+        if (!disposed) {
+          fluvialLinesRef.current = mapped;
+          // Trigger a re-merge with current SpacetimeDB lines
+          setData((prev) => {
+            const stdb = prev.filter((l) => !l.id.startsWith('fluvial.'));
+            const merged = [...stdb, ...mapped];
+            const byId = new Map<string, Line>();
+            merged.forEach((line) => byId.set(line.id, line));
+            return Array.from(byId.values());
+          });
         }
+      } catch (e) {
+        // silent
       } finally {
-        if (!disposed) timer = window.setTimeout(loadFluvial, 15 * 60 * 1000);
+        if (!disposed) timer = window.setTimeout(loadFluvial, 30 * 60 * 1000);
       }
     };
 
@@ -58,46 +67,55 @@ export const useLines = (options: UseLinesOptions = {}) => {
     };
   }, [enabled, includeTrace]);
 
-  useEffect(() => {
-    if (!enabled || !conn || !connected) return;
-    let timer: number | null = null;
-    let disposed = false;
+  const updateData = useCallback(() => {
+    if (!conn) return;
+    const rows = Array.from(conn.db.lines.iter() as Iterable<any>);
+    const mapped: Line[] = rows.map((row) => ({
+      id: row.id,
+      line_name: row.lineName || '',
+      trace_code: includeTrace ? (row.traceCode || '') : '',
+      line_code: row.lineCode || '',
+      category: row.category || '',
+      color: row.color || '',
+      line_sort_code: row.lineSortCode || '',
+      destination_name: row.destinationName || '',
+      direction: row.direction || '',
+      line_type_name: row.lineTypeName || '',
+    }));
 
-    const update = () => {
-      const rows = Array.from(conn.db.lines.iter() as Iterable<any>);
-      const mapped: Line[] = rows.map((row) => ({
-        id: row.id,
-        line_name: row.lineName || '',
-        trace_code: includeTrace ? (row.traceCode || '') : '',
-        line_code: row.lineCode || '',
-        category: row.category || '',
-        color: row.color || '',
-        line_sort_code: row.lineSortCode || '',
-        destination_name: row.destinationName || '',
-        direction: row.direction || '',
-        line_type_name: row.lineTypeName || '',
-      }));
-      const merged = [...mapped, ...fluvialLines];
-      const byId = new Map<string, Line>();
-      merged.forEach((line) => byId.set(line.id, line));
-      setData(Array.from(byId.values()));
+    const merged = [...mapped, ...fluvialLinesRef.current];
+    const byId = new Map<string, Line>();
+    merged.forEach((line) => byId.set(line.id, line));
+    setData(Array.from(byId.values()));
+  }, [conn, includeTrace]);
 
-      if (disposed) return;
-      const nextDelay = mapped.length === 0 ? 250 : 5000;
-      timer = window.setTimeout(update, nextDelay);
-    };
+  const subscribe = useCallback(
+    (handler: () => void) => {
+      if (!conn) return () => {};
+      conn.db.lines.onInsert(handler);
+      conn.db.lines.onDelete(handler);
+      conn.db.lines.onUpdate(handler);
+      return () => {
+        conn.db.lines.removeOnInsert(handler);
+        conn.db.lines.removeOnDelete(handler);
+        conn.db.lines.removeOnUpdate(handler);
+      };
+    },
+    [conn],
+  );
 
-    update();
-
-    return () => {
-      disposed = true;
-      if (timer) window.clearTimeout(timer);
-    };
-  }, [enabled, conn, connected, includeTrace, fluvialLines]);
+  useThrottledTableSubscription(
+    Boolean(enabled && conn && connected),
+    updateData,
+    subscribe,
+    [conn, connected, includeTrace],
+    500,
+    60000,
+  );
 
   return {
     data,
-    isLoading: enabled && !connected,
+    isLoading: enabled && !connected && data.length === 0,
     error: error ? new Error(error) : null,
   };
 };

@@ -1,50 +1,59 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useSpacetime } from '../spacetime/useSpacetime';
+import { useThrottledTableSubscription } from './useThrottledTableSubscription';
 import { Stop } from '../types';
 
 export const useStops = (enabled: boolean) => {
   const { conn, connected, error } = useSpacetime();
   const [data, setData] = useState<Stop[]>([]);
 
-  useEffect(() => {
-    if (!enabled || !conn || !connected) return;
-    let timer: number | null = null;
-    let disposed = false;
+  const update = useCallback(() => {
+    if (!conn) return;
+    const rows = Array.from(conn.db.stops.iter() as Iterable<any>);
+    const mapped: Stop[] = rows.map((row) => ({
+      id: row.id,
+      name: row.name || '',
+      longitude: row.longitude ?? 0,
+      latitude: row.latitude ?? 0,
+      pmr_accessible: row.pmrAccessible ?? false,
+      service_info: row.serviceInfo || '',
+      has_elevator: row.hasElevator ?? false,
+      has_escalator: row.hasEscalator ?? false,
+      address: row.address || '',
+      municipality: row.municipality || '',
+      zone: row.zone || '',
+      gtfs_stop_id: row.gtfsStopId || undefined,
+    }));
+    setData(mapped);
+  }, [conn]);
 
-    const update = () => {
-      const rows = Array.from(conn.db.stops.iter() as Iterable<any>);
-      const mapped: Stop[] = rows.map((row) => ({
-        id: row.id,
-        name: row.name || '',
-        longitude: row.longitude ?? 0,
-        latitude: row.latitude ?? 0,
-        pmr_accessible: row.pmrAccessible ?? false,
-        service_info: row.serviceInfo || '',
-        has_elevator: row.hasElevator ?? false,
-        has_escalator: row.hasEscalator ?? false,
-        address: row.address || '',
-        municipality: row.municipality || '',
-        zone: row.zone || '',
-        gtfs_stop_id: row.gtfsStopId || undefined,
-      }));
-      setData(mapped);
+  const subscribe = useCallback(
+    (handler: () => void) => {
+      if (!conn) return () => {};
+      conn.db.stops.onInsert(handler);
+      conn.db.stops.onDelete(handler);
+      conn.db.stops.onUpdate(handler);
+      return () => {
+        conn.db.stops.removeOnInsert(handler);
+        conn.db.stops.removeOnDelete(handler);
+        conn.db.stops.removeOnUpdate(handler);
+      };
+    },
+    [conn],
+  );
 
-      if (disposed) return;
-      const nextDelay = mapped.length === 0 ? 250 : 6000;
-      timer = window.setTimeout(update, nextDelay);
-    };
-
-    update();
-
-    return () => {
-      disposed = true;
-      if (timer) window.clearTimeout(timer);
-    };
-  }, [enabled, conn, connected]);
+  useThrottledTableSubscription(
+    Boolean(enabled && conn && connected),
+    update,
+    subscribe,
+    [conn, connected],
+    500,
+    5 * 60 * 1000, // 5 min backup
+  );
 
   return {
     data,
-    isLoading: enabled && !connected,
+    isLoading: enabled && !connected && data.length === 0,
     error: error ? new Error(error) : null,
   };
 };

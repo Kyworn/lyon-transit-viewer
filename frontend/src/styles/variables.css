@@ -1,0 +1,307 @@
+:root {
+  /* HSL Color Tokens */
+  --bg-base: #020617; /* Slate 950 */
+  --bg-surface: rgba(15, 23, 42, 0.45); /* Slate 900 semi-transparent */
+  --bg-surface-solid: #0f172a; /* Slate 900 */
+  --bg-surface-hover: rgba(30, 41, 59, 0.6); /* Slate 800 semi-transparent */
+  
+  --primary: hsl(263, 70%, 50%); /* Electric Violet */
+  --primary-hover: hsl(263, 70%, 58%);
+  --primary-glow: rgba(139, 92, 246, 0.25);
+  
+  --secondary: hsl(142, 70%, 45%); /* Neon Emerald */
+  --secondary-glow: rgba(16, 185, 129, 0.2);
+  
+  --accent: hsl(199, 89%, 48%); /* Neon Cyan */
+  --accent-hover: hsl(199, 89%, 56%);
+  --accent-glow: rgba(6, 182, 212, 0.2);
+  
+  --danger: hsl(346, 84%, 50%); /* Rose Red */
+  --warning: hsl(48, 96%, 53%); /* Amber Gold */
+  
+  --text-primary: hsl(210, 40%, 98%);
+  --text-secondary: hsl(215, 20%, 65%);
+  --text-muted: hsl(215, 16%, 47%);
+  
+  --border-light: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(139, 92, 246, 0.4);
+  
+  /* Layout & Glassmorphism Tokens */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+  
+  --glass-blur: blur(16px);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --neon-shadow: 0 0 20px var(--primary-glow);
+  
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Light theme overrides — applied when document has data-theme="light" */
+[data-theme="light"] {
+  --bg-base: #f8fafc;                                  /* Slate 50 */
+  --bg-surface: rgba(255, 255, 255, 0.75);
+  --bg-surface-solid: #ffffff;
+  --bg-surface-hover: rgba(241, 245, 249, 0.75);       /* Slate 100 */
+
+  --text-primary: hsl(222, 47%, 11%);                  /* Slate 900 */
+  --text-secondary: hsl(215, 20%, 35%);
+  --text-muted: hsl(215, 16%, 55%);
+
+  --border-light: rgba(15, 23, 42, 0.10);
+  --border-focus: rgba(139, 92, 246, 0.5);
+
+  --glass-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.12);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.15);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.30);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Glassmorphism Panel Class */
+.glass-panel {
+  background: var(--bg-surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  transition: all var(--transition-normal);
+}
+
+.glass-panel:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Mapbox controls — keep attribution + logo pinned to viewport bottom */
+.mapboxgl-ctrl-bottom-left,
+.mapboxgl-ctrl-bottom-right {
+  bottom: 0 !important;
+  z-index: 1;
+}
+
+.mapboxgl-ctrl-bottom-left .mapboxgl-ctrl,
+.mapboxgl-ctrl-bottom-right .mapboxgl-ctrl {
+  margin: 0 6px 4px 6px;
+}
+
+.mapboxgl-ctrl-attrib {
+  background: rgba(10, 10, 12, 0.5) !important;
+  backdrop-filter: blur(8px);
+  border-radius: 4px 4px 0 0;
+  font-size: 10px;
+  padding: 2px 6px;
+}
+
+.mapboxgl-ctrl-attrib a,
+.mapboxgl-ctrl-attrib {
+  color: var(--text-muted) !important;
+}
+
+/* Mapbox Popup theming — match glass-panel aesthetic */
+.mapboxgl-popup.mobility-popup {
+  max-width: 320px !important;
+}
+
+.mapboxgl-popup.mobility-popup .mapboxgl-popup-content {
+  background: rgba(10, 10, 12, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow);
+  padding: 14px 16px;
+  color: var(--text-primary);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.mapboxgl-popup.mobility-popup .mapboxgl-popup-content > * {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.mapboxgl-popup.mobility-popup .mob-card {
+  width: 100%;
+}
+
+.mapboxgl-popup.mobility-popup .mapboxgl-popup-tip {
+  border-top-color: rgba(10, 10, 12, 0.92);
+  border-bottom-color: rgba(10, 10, 12, 0.92);
+}
+
+.mapboxgl-popup.mobility-popup .mapboxgl-popup-close-button {
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1;
+  padding: 6px 10px;
+  top: 4px;
+  right: 4px;
+  transition: color var(--transition-fast);
+  background: transparent;
+}
+
+.mapboxgl-popup.mobility-popup .mapboxgl-popup-close-button:hover {
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Mobility popup internal structure — equal spacing, consistent paddings */
+.mob-card {
+  font-family: 'Outfit', sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 240px;
+}
+
+.mob-card .mob-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 22px; /* leave space for close button */
+}
+
+.mob-card .mob-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mob-card .mob-header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.mob-card .mob-eyebrow {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.mob-card .mob-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+  margin-top: 3px;
+  word-wrap: break-word;
+}
+
+.mob-card .mob-stats {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.mob-card .mob-stat {
+  flex: 1;
+  background: var(--stat-bg);
+  border: 1px solid var(--stat-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.mob-card .mob-stat-wide {
+  flex: 1.4;
+  text-align: left;
+}
+
+.mob-card .mob-stat-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--stat-color);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.mob-card .mob-stat-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mob-card .mob-stat-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 600;
+  margin-top: 3px;
+}
+
+.mob-card .mob-stat-wide .mob-stat-label {
+  margin-top: 0;
+  margin-bottom: 3px;
+}
+
+.mob-card .mob-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--pill-bg);
+  border: 1px solid var(--pill-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--pill-color);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

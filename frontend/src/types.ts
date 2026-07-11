@@ -41,6 +41,7 @@ export interface Vehicle {
   stop_point_name?: string;
   expected_arrival_time?: string;
   distance_from_stop?: number;
+  stop_order?: number;
 }
 
 export interface LineIcon {

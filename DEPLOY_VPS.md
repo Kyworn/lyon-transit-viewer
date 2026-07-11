@@ -1,10 +1,14 @@
 # Deploiement VPS (Production)
 
 Ce guide documente 2 modes:
-- A) Docker Compose (recommande)
-- B) Systemd natif
+- A) Lancement manuel (dev/test)
+- B) Systemd natif (recommande pour production)
 
 Exposition externe recommandee: **Cloudflare Tunnel**.
+
+> Note: les procedures SpacetimeDB sont invoquees via HTTP (`curl POST`).
+> Le CLI `spacetime call` ne gere que les reducers. `scripts/ingest_daemon.sh`
+> et `scripts/set_config.sh` utilisent deja le bon mecanisme.
 
 ---
 
@@ -25,7 +29,7 @@ cd lyon-transit-viewer
 
 ---
 
-## A) Docker Compose (recommande)
+## A) Lancement manuel (dev/test)
 
 ### A.1 Variables de prod
 
@@ -66,7 +70,7 @@ spacetime publish --server local --module-path spacetimedb/spacetimedb --yes lyo
 python3 -m http.server 3001 --bind 127.0.0.1 -d frontend/build
 ```
 
-> En mode Docker strict, vous pouvez conteneuriser ces commandes; ce repo ne fournit pas encore un `docker-compose.prod.yml` officiel Spacetime-first.
+> Mode manuel reserve aux tests. Pour la production durable, utiliser systemd (section B).
 
 ---
 
@@ -152,7 +156,7 @@ cd ~/lyon-transit-viewer
 Variables utiles:
 
 ```bash
-SKIP_PULL=1 DB_NAME=lyon-transit SERVER_NAME=local ./scripts/deploy_vps.sh
+SKIP_PULL=1 DB_NAME=lyon-transit SERVER_URL=http://127.0.0.1:3000 ./scripts/deploy_vps.sh
 TCL_CREDENTIALS="<email:password>" ./scripts/deploy_vps.sh
 ```
 

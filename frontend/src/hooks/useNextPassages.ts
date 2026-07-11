@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useSpacetime } from '../spacetime/useSpacetime';
+import { useThrottledTableSubscription } from './useThrottledTableSubscription';
 
 interface NextPassage {
   vehicle_ref: string | null;
@@ -16,6 +17,7 @@ interface NextPassage {
   scheduled_arrival_time?: string;
   route_color?: string;
   route_text_color?: string;
+  is_monitored?: boolean;
 }
 
 const extractLineSortCode = (lineRef?: string | null) => {
@@ -24,6 +26,26 @@ const extractLineSortCode = (lineRef?: string | null) => {
   if (idx === -1) return null;
   const rest = lineRef.slice(idx + 2);
   return rest.split(':')[0] || null;
+};
+
+const extractLineCodeFromJourneyRef = (ref?: string | null): string | null => {
+  if (!ref) return null;
+  let clean = ref;
+  const idx = ref.indexOf('::');
+  if (idx !== -1) {
+    clean = ref.slice(idx + 2);
+  }
+  const locIdx = clean.indexOf(':LOC');
+  if (locIdx !== -1) {
+    clean = clean.slice(0, locIdx);
+  }
+  const parts = clean.split('_');
+  if (parts.length >= 2) {
+    const candidate = parts[1];
+    const dashIdx = candidate.indexOf('-');
+    return dashIdx !== -1 ? candidate.slice(0, dashIdx) : candidate;
+  }
+  return null;
 };
 
 const formatTime = (iso?: string | null): string | null => {
@@ -123,13 +145,12 @@ const useNextPassagesFiltered = (
   const targetLine = normalizeLine(lineSortCode);
   const targetLineCode = normalizeLine(lineCode);
 
-  useEffect(() => {
-    if (!enabled || !conn || !connected || !stopId) return;
-
-    const update = () => {
-      const stop = Array.from(conn.db.stops.iter() as Iterable<any>).find((s) => s.id === stopId);
-      const gtfsStopId = stop?.gtfsStopId || stop?.gtfs_stop_id || null;
+  const update = useCallback(() => {
+    if (!conn || !stopId) return;
+    {
       const stopsRows = Array.from(conn.db.stops.iter() as Iterable<any>);
+      const stop = stopsRows.find((s) => s.id === stopId);
+      const gtfsStopId = stop?.gtfsStopId || stop?.gtfs_stop_id || null;
       const stopsById = new Map(
         stopsRows.map((s) => [s.id, s.name || s.id])
       );
@@ -152,8 +173,10 @@ const useNextPassagesFiltered = (
           destinationNamesByRef.set(v.destinationRef, v.destinationName);
         }
       });
+
+      const allCalls = Array.from(conn.db.estimated_calls_current.iter() as Iterable<any>);
       const journeyTerminalByRef = new Map<string, { order: number; name: string }>();
-      Array.from(conn.db.estimated_calls_current.iter() as Iterable<any>).forEach((c) => {
+      allCalls.forEach((c) => {
         if (!c.datedVehicleJourneyRef || !c.stopPointName) return;
         const ref = c.datedVehicleJourneyRef;
         const order = Number(c.stopOrder ?? -1);
@@ -162,14 +185,20 @@ const useNextPassagesFiltered = (
           journeyTerminalByRef.set(ref, { order, name: c.stopPointName });
         }
       });
-      const linesByCode = new Map(
-        Array.from(conn.db.lines.iter() as Iterable<any>).map((l) => [normalizeLine(l.lineSortCode), l])
-      );
+
+      const linesRows = Array.from(conn.db.lines.iter() as Iterable<any>);
+      const linesByCode = new Map<string, any>();
+      linesRows.forEach((l) => {
+        const sortCodeNorm = normalizeLine(l.lineSortCode);
+        const codeNorm = normalizeLine(l.lineCode);
+        if (sortCodeNorm) linesByCode.set(sortCodeNorm, l);
+        if (codeNorm) linesByCode.set(codeNorm, l);
+      });
       const lineAliases = new Set<string>();
       addCodeAlias(lineAliases, targetLine);
       addCodeAlias(lineAliases, targetLineCode);
       if (targetLine || targetLineCode) {
-        Array.from(conn.db.lines.iter() as Iterable<any>).forEach((l) => {
+        linesRows.forEach((l) => {
           const sortCode = normalizeLine(l.lineSortCode);
           const code = normalizeLine(l.lineCode);
           if (targetLine && sortCode === targetLine && code) addCodeAlias(lineAliases, code);
@@ -184,32 +213,60 @@ const useNextPassagesFiltered = (
         return humanizeFromRef(label) || humanizeFromRef(ref) || null;
       };
 
-      const allCalls = Array.from(conn.db.estimated_calls_current.iter() as Iterable<any>);
-      let calls = gtfsStopId
-        ? allCalls.filter((c) => c.gtfsStopId === gtfsStopId)
-        : [];
+      const targetStopName = stop?.name ? normalize(stop.name) : null;
+      const matchingStops = targetStopName
+        ? stopsRows.filter((s) => normalize(s.name) === targetStopName)
+        : [stop].filter(Boolean);
 
-      // Primary fallback for stops without GTFS mapping: match by stop_point_ref.
-      if (calls.length === 0 && stop?.id) {
-        calls = allCalls.filter((c) => (c.stopPointRef || '') === stop.id);
-      }
+      const gtfsStopIds = new Set<string>();
+      const stopIds = new Set<string>();
+      const stopCores = new Set<string>();
 
-      // Secondary fallback for StopArea/StopPoint mismatches: match on shared SP core id.
-      if (calls.length === 0 && stop?.id) {
-        const stopCore = extractRefCore(stop.id);
-        if (stopCore) {
-          calls = allCalls.filter((c) => extractRefCore(c.stopPointRef || null) === stopCore);
+      matchingStops.forEach((s) => {
+        const gId = s.gtfsStopId || s.gtfs_stop_id;
+        if (gId) gtfsStopIds.add(gId);
+        if (s.id) {
+          stopIds.add(s.id);
+          const core = extractRefCore(s.id);
+          if (core) stopCores.add(core);
         }
+      });
+
+      // SIRI SP IDs ≠ TCL gtfs_stop_ids — different namespaces.
+      // Build name→SP ref mapping from stop_ref_name_cache (persistent across vehicles) and
+      // vehicle_positions_current (real-time supplement for newly-seen stops).
+      if (targetStopName) {
+        Array.from((conn.db as any).stop_ref_name_cache.iter() as Iterable<any>).forEach((entry) => {
+          const eName = entry.stopName ? normalize(entry.stopName) : null;
+          if (eName && eName === targetStopName && entry.stopRef) {
+            stopIds.add(entry.stopRef);
+            const core = extractRefCore(entry.stopRef);
+            if (core) stopCores.add(core);
+          }
+        });
+        Array.from(conn.db.vehicle_positions_current.iter() as Iterable<any>).forEach((v) => {
+          const vName = v.stopPointName ? normalize(v.stopPointName) : null;
+          if (vName && vName === targetStopName && v.stopPointRef) {
+            stopIds.add(v.stopPointRef);
+            const core = extractRefCore(v.stopPointRef);
+            if (core) stopCores.add(core);
+          }
+        });
       }
 
-      // Fallback when GTFS stop id mapping is missing: match by stop name.
-      if (calls.length === 0 && stop?.name) {
-        const stopName = normalize(stop.name);
-        calls = allCalls.filter((c) => normalize(c.stopPointName || '') === stopName);
-      }
-      const mapped: NextPassage[] = calls.map((call) => {
+      let calls = allCalls.filter((c) => {
+        if (c.gtfsStopId && gtfsStopIds.has(c.gtfsStopId)) return true;
+        if (c.stopPointRef && stopIds.has(c.stopPointRef)) return true;
+        const callCore = extractRefCore(c.stopPointRef || null);
+        if (callCore && stopCores.has(callCore)) return true;
+        return false;
+      });
+      const mapped: NextPassage[] = calls.map((call): NextPassage => {
         const journey = journeys.get(call.datedVehicleJourneyRef);
-        const lineCodeRaw = journey?.lineSortCode || extractLineSortCode(journey?.lineRef || undefined) || '';
+        const lineCodeRaw = journey?.lineSortCode || 
+                            extractLineSortCode(journey?.lineRef || undefined) || 
+                            extractLineCodeFromJourneyRef(call.datedVehicleJourneyRef) || 
+                            '';
         const lineCodeNorm = normalizeLine(lineCodeRaw);
         const line = linesByCode.get(lineCodeNorm);
         const destinationRef = journey?.destinationRef || null;
@@ -218,6 +275,7 @@ const useNextPassagesFiltered = (
           (journey ? journeyTerminalByRef.get(journey.datedVehicleJourneyRef)?.name : null) ||
           resolveStopName(destinationRef, journey?.destinationName || null);
         const scheduled = formatTime(call.expectedArrivalTime || call.aimedArrivalTime || null);
+        const isMonitored = !!(call.callId && call.callId.includes('monitored'));
 
         return {
           vehicle_ref: null,
@@ -234,7 +292,16 @@ const useNextPassagesFiltered = (
           scheduled_arrival_time: scheduled || undefined,
           route_color: line?.color || undefined,
           route_text_color: undefined,
+          is_monitored: isMonitored,
         };
+      }).filter((row) => {
+        if (!row.expected_arrival_time) return true;
+        const ts = new Date(row.expected_arrival_time).getTime();
+        if (Number.isFinite(ts)) {
+          const cutoff = row.is_monitored ? 10 * 60 * 1000 : 60_000;
+          return ts >= (Date.now() - cutoff);
+        }
+        return true;
       });
 
       const lineFiltered = mapped.filter((row) => {
@@ -260,12 +327,16 @@ const useNextPassagesFiltered = (
           ? directionFiltered
           : lineFiltered;
 
-      const now = Date.now() - 60_000;
+      const now = Date.now();
       const horizon = Date.now() + 2 * 60 * 60 * 1000;
       const upcoming = filtered.filter((row) => {
         if (!row.expected_arrival_time) return true;
         const ts = new Date(row.expected_arrival_time).getTime();
-        return Number.isFinite(ts) ? ts >= now && ts <= horizon : true;
+        if (Number.isFinite(ts)) {
+          const cutoff = row.is_monitored ? 10 * 60 * 1000 : 60_000;
+          return ts >= (now - cutoff) && ts <= horizon;
+        }
+        return true;
       });
 
       upcoming.sort((a, b) => {
@@ -286,15 +357,40 @@ const useNextPassagesFiltered = (
         });
         setData(fallback.slice(0, 20));
       }
-    };
+    }
+  }, [conn, stopId, targetDirection, targetDestination, targetLine, targetLineCode, setData]);
 
-    update();
-    const timer = window.setInterval(update, 6000);
+  const subscribe = useCallback(
+    (handler: () => void) => {
+      if (!conn) return () => {};
+      const calls = conn.db.estimated_calls_current;
+      const vehicles = conn.db.vehicle_positions_current;
+      calls.onInsert(handler);
+      calls.onDelete(handler);
+      calls.onUpdate(handler);
+      vehicles.onInsert(handler);
+      vehicles.onDelete(handler);
+      vehicles.onUpdate(handler);
+      return () => {
+        calls.removeOnInsert(handler);
+        calls.removeOnDelete(handler);
+        calls.removeOnUpdate(handler);
+        vehicles.removeOnInsert(handler);
+        vehicles.removeOnDelete(handler);
+        vehicles.removeOnUpdate(handler);
+      };
+    },
+    [conn],
+  );
 
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [enabled, conn, connected, stopId, targetDirection, targetDestination, targetLine, targetLineCode]);
+  useThrottledTableSubscription(
+    Boolean(enabled && conn && connected && stopId),
+    update,
+    subscribe,
+    [conn, connected, stopId, targetDirection, targetDestination, targetLine, targetLineCode],
+    500,
+    15000,
+  );
 
   return {
     data,

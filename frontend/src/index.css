@@ -1,26 +1,65 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+@import './styles/variables.css';
 
 html,
 body,
 #root {
   width: 100%;
   height: 100%;
-}
-
-body {
+  background-color: var(--bg-base);
+  overflow: hidden;
   margin: 0;
-  color: #e2e8f0;
-  font-family: 'IBM Plex Sans', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  padding: 0;
 }
 
-code {
-  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+/* Animations */
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(1.08); }
+}
+
+@keyframes spin-slow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 8s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+
+/* Mobile Input Zoom Prevention & Form Fixes */
+input, select, textarea {
+  font-size: 16px !important;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--border-focus) !important;
+  box-shadow: 0 0 0 2px var(--primary-glow) !important;
+}
+
+/* Mapbox Control Relocations (to not overlap with floating mobile docks) */
+.mapboxgl-ctrl-bottom-right {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 84px) !important;
+}
+
+.mapboxgl-ctrl-bottom-left {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 84px) !important;
+}
+
+/* Base button and form primitive styles */
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+button:active {
+  transform: scale(0.96);
 }
