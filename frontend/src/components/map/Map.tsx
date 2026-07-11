@@ -159,8 +159,8 @@ export default function MapComponent() {
         bearing: -15,
         antialias: true,
         maxBounds: [
-          [4.35, 45.40],
-          [5.25, 46.10]
+          [4.10, 45.35],
+          [5.35, 46.45]
         ],
         minZoom: 10
       });
@@ -243,6 +243,38 @@ export default function MapComponent() {
 
     const sourceData: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features };
 
+    // One label per zone number. Mapbox's polygon symbol placement can emit a
+    // label per ring/part, so we render labels from a dedicated point source
+    // (area-centroid of the zone outer ring) — guarantees exactly one "Zone N".
+    const areaCentroid = (ring: number[][]): [number, number] => {
+      let a = 0, cx = 0, cy = 0;
+      for (let i = 0; i < ring.length - 1; i++) {
+        const [x0, y0] = ring[i], [x1, y1] = ring[i + 1];
+        const cr = x0 * y1 - x1 * y0;
+        a += cr; cx += (x0 + x1) * cr; cy += (y0 + y1) * cr;
+      }
+      a *= 0.5;
+      return a ? [cx / (6 * a), cy / (6 * a)] : [ring[0][0], ring[0][1]];
+    };
+    const seenZones = new Set<number>();
+    const labelFeatures = features
+      .filter((f) => {
+        const zn = f.properties.zone as number;
+        if (!zn || seenZones.has(zn)) return false;
+        seenZones.add(zn);
+        return true;
+      })
+      .map((f) => {
+        const geom: any = f.geometry;
+        const outer = geom?.type === 'MultiPolygon' ? geom.coordinates[0][0] : geom?.coordinates?.[0];
+        return {
+          type: 'Feature' as const,
+          properties: { label: f.properties.label, zone: f.properties.zone },
+          geometry: { type: 'Point' as const, coordinates: areaCentroid(outer || [[4.83, 45.76]]) },
+        };
+      });
+    const labelData: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: labelFeatures };
+
     // Color ramp: gradient violet from light (zone 1) to deep (zone 5)
     // Same hue 263, alpha ramps from 0.06 → 0.22
     const fillColor: any = [
@@ -279,6 +311,8 @@ export default function MapComponent() {
     const source = mapInstance.getSource('pricing-zones') as mapboxgl.GeoJSONSource;
     if (source) {
       source.setData(sourceData);
+      const labelSrc = mapInstance.getSource('pricing-zone-labels') as mapboxgl.GeoJSONSource;
+      if (labelSrc) labelSrc.setData(labelData);
       try {
         mapInstance.setPaintProperty('pricing-zones-fill', 'fill-color', fillColor);
         mapInstance.setPaintProperty('pricing-zones-outline', 'line-color', outlineColor);
@@ -305,10 +339,11 @@ export default function MapComponent() {
           'line-blur': 0.5,
         },
       });
+      mapInstance.addSource('pricing-zone-labels', { type: 'geojson', data: labelData });
       mapInstance.addLayer({
         id: 'pricing-zones-label',
         type: 'symbol',
-        source: 'pricing-zones',
+        source: 'pricing-zone-labels',
         layout: {
           'text-field': ['get', 'label'],
           'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],

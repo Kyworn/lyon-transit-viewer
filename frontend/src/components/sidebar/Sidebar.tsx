@@ -7,7 +7,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { Stop } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
-import { usePanelDismiss, useSwipeToClose } from '../../hooks/usePanelDismiss';
+import { usePanelDismiss } from '../../hooks/usePanelDismiss';
 
 // Code parsing and normalizations
 const normalizeCode = (value?: string | null) =>
@@ -69,7 +69,6 @@ export default function Sidebar() {
   const { isMobile } = useBreakpoint();
   const closeSidebar = () => setSidebarOpen(false);
   usePanelDismiss(sidebarOpen, closeSidebar);
-  const { panelProps, handleProps } = useSwipeToClose(isMobile, closeSidebar);
 
   const [searchInput, setSearchInput] = useState('');
   const [activeTab, setActiveTab] = useState<'explore' | 'favorites'>('explore');
@@ -276,14 +275,13 @@ export default function Sidebar() {
           exit={{ x: -440, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 220, damping: 28 }}
           className="sidebar-wrapper"
-          {...panelProps}
         >
           {isMobile && (
             <div
-              {...handleProps}
+              onClick={closeSidebar}
               style={{
                 display: 'flex', justifyContent: 'center', padding: '10px 0 2px',
-                flexShrink: 0, ...handleProps.style,
+                flexShrink: 0, cursor: 'pointer',
               }}
             >
               <span style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.25)' }} />
