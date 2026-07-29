@@ -62,3 +62,18 @@ python3 -m http.server 3001 --bind 127.0.0.1 -d build
 
 
 
+
+## Licence
+
+Ce projet est distribué sous licence [GNU AGPL v3](LICENSE) ou ultérieure.
+
+Concrètement : tu peux l'utiliser, le modifier et le redistribuer librement. Si
+tu le déploies en ligne dans une version modifiée, tu dois proposer le code
+source correspondant à tes utilisateurs.
+
+### Données et fonds de carte
+
+Les données transport proviennent de la plateforme open data de la Métropole de
+Lyon (`data.grandlyon.com`, jeux SYTRAL / TCL) et restent soumises à leurs
+licences respectives. Fond de carte CARTO basé sur OpenStreetMap
+(© contributeurs OpenStreetMap), géocodage via Photon (Komoot).

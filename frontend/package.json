@@ -2,6 +2,7 @@
   "name": "lyon-transit-frontend",
   "version": "0.1.0",
   "private": true,
+  "license": "AGPL-3.0-or-later",
   "type": "module",
   "dependencies": {
     "@tanstack/react-query": "^5.0.0",
