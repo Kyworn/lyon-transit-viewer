@@ -41,6 +41,7 @@ export default function Header() {
           z-index: 100;
           pointer-events: auto;
           border: 1px solid var(--border-light);
+          background: var(--bg-surface-solid) !important;
           transition: margin-left var(--transition-normal), margin-right var(--transition-normal), border-color var(--transition-normal), background var(--transition-normal);
           margin-left: ${(sidebarOpen || routePlannerOpen) ? '448px' : '24px'};
           margin-right: ${alertsPanelOpen ? '448px' : '24px'};

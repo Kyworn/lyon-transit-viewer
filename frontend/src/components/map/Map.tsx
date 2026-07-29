@@ -165,8 +165,8 @@ export default function MapComponent() {
         style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
         center: centerCoordinates ? [centerCoordinates.lng, centerCoordinates.lat] : [4.8357, 45.7640],
         zoom: zoom,
-        pitch: 50,
-        bearing: -15,
+        pitch: 0,
+        bearing: 0,
         antialias: true,
         maxBounds: [
           [4.10, 45.35],
@@ -176,6 +176,7 @@ export default function MapComponent() {
       });
 
       map.current = mapInstance;
+      mapInstance.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
 
       mapInstance.on('moveend', () => {
         if (isProgrammaticFlightRef.current) {

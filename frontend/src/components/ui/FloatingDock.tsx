@@ -125,15 +125,18 @@ export default function FloatingDock() {
   ];
 
   return (
-    <div className="glass-panel dock-scroll" style={{
+    <div className="dock-scroll" style={{
       display: 'flex',
       alignItems: 'center',
       gap: '8px',
       padding: '8px 16px',
       borderRadius: 'var(--radius-full)',
       pointerEvents: 'auto',
+      background: 'var(--bg-surface-solid)',
+      backdropFilter: 'var(--glass-blur)',
+      WebkitBackdropFilter: 'var(--glass-blur)',
       border: '1px solid var(--border-light)',
-      boxShadow: 'var(--glass-shadow)',
+      boxShadow: 'var(--glass-shadow), 0 0 0 1px rgba(0,0,0,0.2)',
       // On narrow screens the 7 buttons overflow the viewport: scroll instead of
       // clipping. maxWidth keeps the pill within the screen; the row stays single.
       maxWidth: 'calc(100vw - 24px)',
