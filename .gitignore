@@ -45,6 +45,10 @@ backend/gtfs/GTFS_TCL.ZIP
 
 # Personal notes and configs
 .claude/
+.cursor/
+.windsurfrules
+AGENTS.md
+CLAUDE.md
 GEMINI.md
 data.txt
 info.txt
