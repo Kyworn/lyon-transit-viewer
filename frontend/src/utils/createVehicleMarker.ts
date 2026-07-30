@@ -51,9 +51,11 @@ export const createVehicleMarker = (color: string, mode: string): string => {
         <!-- 3. Inner White Ring (Detail) -->
         <circle cx="0" cy="0" r="${coreRadius - strokeWidth}" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
 
-        <!-- 4. Direction Indicator (Arrow pointing UP) -->
-        <!-- Sharp, high-contrast white arrow -->
-        <path d="M -5 ${coreRadius * 0.2} L 0 ${-coreRadius * 0.6} L 5 ${coreRadius * 0.2}" fill="white" stroke="none" />
+        <!-- 4. Direction Indicator: chevron OUTSIDE the puck, readable at a glance -->
+        <path d="M -7 ${-coreRadius - 4} L 0 ${-coreRadius - 12} L 7 ${-coreRadius - 4}"
+              fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M -7 ${-coreRadius - 4} L 0 ${-coreRadius - 12} L 7 ${-coreRadius - 4}"
+              fill="none" stroke="${markerColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
         
       </g>
     </svg>

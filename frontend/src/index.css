@@ -51,6 +51,16 @@ input:focus, select:focus, textarea:focus {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 84px) !important;
 }
 
+/* Push zoom/compass below the floating header */
+.maplibregl-ctrl-top-right {
+  top: 96px !important;
+}
+@media (max-width: 767px) {
+  .maplibregl-ctrl-top-right {
+    top: 80px !important;
+  }
+}
+
 /* Base button and form primitive styles */
 button {
   cursor: pointer;
