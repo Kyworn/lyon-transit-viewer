@@ -57,6 +57,7 @@ export interface AppState {
   velovVisible: boolean;
   autopartageVisible: boolean;
   toiletsVisible: boolean;
+  roadworksVisible: boolean;
   vehiclesHeatmapVisible: boolean;
   nightBusOnly: boolean;
   userLocation: { lng: number; lat: number; accuracy?: number } | null;
@@ -99,6 +100,7 @@ export interface AppState {
   toggleVelov: () => void;
   toggleAutopartage: () => void;
   toggleToilets: () => void;
+  toggleRoadworks: () => void;
   toggleVehiclesHeatmap: () => void;
   toggleNightBusOnly: () => void;
   setUserLocation: (loc: { lng: number; lat: number; accuracy?: number } | null) => void;
@@ -139,6 +141,7 @@ export const useAppStore = create<AppState>()(
       velovVisible: false,
       autopartageVisible: false,
       toiletsVisible: false,
+      roadworksVisible: false,
       vehiclesHeatmapVisible: false,
       nightBusOnly: false,
       userLocation: null,
@@ -208,6 +211,7 @@ export const useAppStore = create<AppState>()(
       toggleVelov: () => set((state) => ({ velovVisible: !state.velovVisible })),
       toggleAutopartage: () => set((state) => ({ autopartageVisible: !state.autopartageVisible })),
       toggleToilets: () => set((state) => ({ toiletsVisible: !state.toiletsVisible })),
+      toggleRoadworks: () => set((state) => ({ roadworksVisible: !state.roadworksVisible })),
       toggleVehiclesHeatmap: () => set((state) => ({ vehiclesHeatmapVisible: !state.vehiclesHeatmapVisible })),
       toggleNightBusOnly: () => set((state) => ({ nightBusOnly: !state.nightBusOnly })),
       setUserLocation: (loc) => set({ userLocation: loc }),
@@ -235,6 +239,7 @@ export const useAppStore = create<AppState>()(
         velovVisible: state.velovVisible,
         autopartageVisible: state.autopartageVisible,
         toiletsVisible: state.toiletsVisible,
+        roadworksVisible: state.roadworksVisible,
         vehiclesHeatmapVisible: state.vehiclesHeatmapVisible,
         nightBusOnly: state.nightBusOnly,
         themeMode: state.themeMode

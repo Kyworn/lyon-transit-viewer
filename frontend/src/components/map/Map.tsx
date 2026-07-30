@@ -10,6 +10,7 @@ import { useLineIcons } from '../../hooks/useLineIcons';
 import { useVelov } from '../../hooks/useVelov';
 import { useAutopartage } from '../../hooks/useAutopartage';
 import { usePublicToilets } from '../../hooks/usePublicToilets';
+import { useWfsGeoJson } from '../../hooks/useWfsGeoJson';
 import {
   registerStopIcons,
   setupMapAtmosphere,
@@ -101,6 +102,7 @@ export default function MapComponent() {
     stopsVisible,
     linesVisible,
     toiletsVisible,
+    roadworksVisible,
     vehiclesHeatmapVisible,
     nightBusOnly,
     userLocation,
@@ -128,6 +130,7 @@ export default function MapComponent() {
   const { data: velovStations } = useVelov(velovVisible);
   const { data: autopartageStations } = useAutopartage(autopartageVisible);
   const { data: publicToilets } = usePublicToilets(toiletsVisible);
+  const roadworks = useWfsGeoJson('metropole-de-lyon:pvo_patrimoine_voirie.pvochantierperturbant', roadworksVisible);
 
   // Dismiss the Splash only once the core data layers (stops, line traces,
   // pricing zones) have loaded AND painted (next `idle`). Armed once.
@@ -887,6 +890,55 @@ export default function MapComponent() {
       });
     }
   }, [toiletsVisible, publicToilets, isMapLoaded]);
+
+  // Disruptive roadworks (Metropole), filtered to what is actually open today
+  useEffect(() => {
+    if (!isMapLoaded || !map.current) return;
+    const m = map.current;
+    const SRC = 'roadworks-source';
+    const layers = ['roadworks-fill', 'roadworks-outline'];
+
+    if (!roadworksVisible || !roadworks) {
+      layers.forEach((id) => { if (m.getLayer(id)) m.removeLayer(id); });
+      if (m.getSource(SRC)) m.removeSource(SRC);
+      return;
+    }
+    if (m.getSource(SRC)) return;
+
+    // The feed keeps finished sites around; only show ones spanning today.
+    const today = new Date().toISOString().slice(0, 10);
+    const active: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: (roadworks.features || []).filter((f) => {
+        const end = f.properties?.finchantier as string | undefined;
+        const start = f.properties?.debutchantier as string | undefined;
+        return (!end || end >= today) && (!start || start <= today);
+      }),
+    };
+
+    const before = m.getLayer('vehicles-layer') ? 'vehicles-layer' : undefined;
+    m.addSource(SRC, { type: 'geojson', data: active });
+    m.addLayer({
+      id: 'roadworks-fill',
+      type: 'fill',
+      source: SRC,
+      paint: {
+        // codeimportance 1 = "tres perturbant"
+        'fill-color': ['case', ['==', ['get', 'codeimportance'], 1], '#f97316', '#facc15'],
+        'fill-opacity': 0.25,
+      },
+    }, before);
+    m.addLayer({
+      id: 'roadworks-outline',
+      type: 'line',
+      source: SRC,
+      paint: {
+        'line-color': ['case', ['==', ['get', 'codeimportance'], 1], '#f97316', '#facc15'],
+        'line-width': 1.5,
+        'line-opacity': 0.8,
+      },
+    }, before);
+  }, [roadworksVisible, roadworks, isMapLoaded]);
 
   // Vehicles density heatmap
   useEffect(() => {
