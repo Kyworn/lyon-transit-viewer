@@ -145,7 +145,9 @@ export default function App() {
             style={{
               width: '100%',
               maxWidth: '960px',
-              backgroundColor: 'rgba(15, 23, 42, 0.85)',
+              maxHeight: 'calc(100dvh - 40px)',
+              overflowY: 'auto',
+              backgroundColor: 'var(--bg-surface)',
               border: '1px solid rgba(139, 92, 246, 0.2)',
               borderRadius: 'var(--radius-xl)',
               padding: '12px',

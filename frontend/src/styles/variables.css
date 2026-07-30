@@ -1,7 +1,7 @@
 :root {
   /* HSL Color Tokens */
   --bg-base: #020617; /* Slate 950 */
-  --bg-surface: rgba(15, 23, 42, 0.45); /* Slate 900 semi-transparent */
+  --bg-surface: rgba(15, 23, 42, 0.94); /* Slate 900, near-opaque: readable over the map */
   --bg-surface-solid: #0f172a; /* Slate 900 */
   --bg-surface-hover: rgba(30, 41, 59, 0.6); /* Slate 800 semi-transparent */
   
@@ -44,7 +44,7 @@
 /* Light theme overrides — applied when document has data-theme="light" */
 [data-theme="light"] {
   --bg-base: #f8fafc;                                  /* Slate 50 */
-  --bg-surface: rgba(255, 255, 255, 0.75);
+  --bg-surface: rgba(255, 255, 255, 0.96);
   --bg-surface-solid: #ffffff;
   --bg-surface-hover: rgba(241, 245, 249, 0.75);       /* Slate 100 */
 

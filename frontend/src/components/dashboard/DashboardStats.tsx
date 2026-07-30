@@ -22,8 +22,9 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, subtitle, color, 
       className="glass-panel metric-card-hover" 
       style={{
         padding: '16px 20px',
+        minWidth: 0,
         borderRadius: 'var(--radius-lg)',
-        background: `linear-gradient(140deg, ${glowColor} 0%, rgba(15, 23, 42, 0.6) 100%)`,
+        background: `linear-gradient(140deg, ${glowColor} 0%, rgba(15, 23, 42, 0.92) 100%)`,
         border: `1px solid ${borderColor}`,
         display: 'flex',
         justifyContent: 'space-between',
@@ -88,7 +89,7 @@ const DashboardStats: React.FC = () => {
   }, [vehicles, lineMap]);
 
   return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ padding: 'clamp(14px, 4vw, 24px)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <style dangerouslySetInnerHTML={{ __html: `
         .metric-card-hover {
           transition: all var(--transition-fast) !important;
@@ -99,17 +100,17 @@ const DashboardStats: React.FC = () => {
         }
         .metrics-grid-four {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 16px;
         }
         .metrics-grid-three {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 16px;
         }
         @media (max-width: 900px) {
           .metrics-grid-four {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
           .metrics-grid-three {
             grid-template-columns: 1fr;

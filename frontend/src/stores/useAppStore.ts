@@ -148,9 +148,10 @@ export const useAppStore = create<AppState>()(
       themeMode: 'dark',
 
       /* Selection Setters */
-      setSelectedItem: (item) => set({ selectedItem: item }),
+      // Stop card and vehicle card are mutually exclusive: selecting one closes the other.
+      setSelectedItem: (item) => set(item ? { selectedItem: item, selectedStop: null } : { selectedItem: null }),
       setSelectedLine: (line) => set({ selectedLine: line }),
-      setSelectedStop: (stop) => set({ selectedStop: stop }),
+      setSelectedStop: (stop) => set(stop ? { selectedStop: stop, selectedItem: null } : { selectedStop: null }),
       setCenterCoordinates: (coords) => set({ centerCoordinates: coords }),
       setZoom: (zoom) => set({ zoom }),
       setSelectedJourney: (journey) => set({ 
